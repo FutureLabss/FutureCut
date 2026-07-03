@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* ============================================================
+   FutureCut — Editor Design Tokens (dark theme)
+   Clean, dark-themed interface typical for video editors.
+   Reduces eye strain against bright video content.
+   ============================================================ */
+
+:root {
+  /* Surface hierarchy (darkest to lightest) */
+  --bg-app: #0d0d0f;
+  --bg-panel: #151518;
+  --bg-surface: #1c1c21;
+  --bg-elevated: #252529;
+  --bg-hover: #2a2a30;
+  --bg-active: #333339;
+
+  /* Accent */
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-muted: #4f46e5;
+  --accent-dim: rgba(99, 102, 241, 0.15);
+
+  /* Text */
+  --text-primary: #eeeef0;
+  --text-secondary: #9a9aa6;
+  --text-muted: #5f5f6e;
+
+  /* Borders */
+  --border: #2a2a32;
+  --border-hover: #3a3a44;
+
+  /* Timeline-specific */
+  --playhead: #ef4444;
+  --clip-bg: #2563eb;
+  --clip-bg-hover: #3b82f6;
+  --clip-selected: #6366f1;
+  --clip-handle: rgba(255, 255, 255, 0.7);
+  --ruler-text: #5f5f6e;
+  --ruler-mark: #2a2a32;
+
+  /* Semantic */
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+
+  /* Sizing */
+  --header-height: 48px;
+  --timeline-height: 200px;
+  --track-height: 56px;
+}
+
+@theme inline {
+  --color-background: var(--bg-app);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-active) var(--bg-panel);
+}
+
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ============================================================
+   Scrollbar styling
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-panel);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-active);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
+}
