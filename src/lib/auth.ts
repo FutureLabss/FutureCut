@@ -7,7 +7,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { getDb } from "./db";
+import { queryOne, execute } from "./db";
 import { v4 as uuidv4 } from "uuid";
 import { authConfig } from "./auth.config";
 
@@ -30,32 +30,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!email || !password) return null;
 
-        const db = getDb();
-
         if (action === "signup") {
           // Check if user already exists
-          const existing = db
-            .prepare("SELECT id FROM users WHERE email = ?")
-            .get(email) as { id: string } | undefined;
+          const existing = await queryOne<{ id: string }>(
+            "SELECT id FROM users WHERE email = ?",
+            [email]
+          );
 
           if (existing) return null;
 
           const id = uuidv4();
           const passwordHash = await bcrypt.hash(password, 12);
 
-          db.prepare(
-            "INSERT INTO users (id, email, name, password_hash) VALUES (?, ?, ?, ?)"
-          ).run(id, email, name || email.split("@")[0], passwordHash);
+          await execute(
+            "INSERT INTO users (id, email, name, password_hash) VALUES (?, ?, ?, ?)",
+            [id, email, name || email.split("@")[0], passwordHash]
+          );
 
           return { id, email, name: name || email.split("@")[0] };
         }
 
         // Sign in
-        const user = db
-          .prepare("SELECT id, email, name, password_hash FROM users WHERE email = ?")
-          .get(email) as
-          | { id: string; email: string; name: string; password_hash: string }
-          | undefined;
+        const user = await queryOne<{
+          id: string;
+          email: string;
+          name: string;
+          password_hash: string;
+        }>("SELECT id, email, name, password_hash FROM users WHERE email = ?", [
+          email,
+        ]);
 
         if (!user) return null;
 

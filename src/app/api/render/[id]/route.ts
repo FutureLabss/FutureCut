@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { queryOne, execute } from "@/lib/db";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,14 +18,12 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = getDb();
-  const job = db
-    .prepare(
-      `SELECT r.* FROM render_jobs r
-       JOIN projects p ON r.project_id = p.id
-       WHERE r.id = ? AND p.owner_id = ?`
-    )
-    .get(id, session.user.id) as Record<string, unknown> | undefined;
+  const job = await queryOne<Record<string, unknown>>(
+    `SELECT r.* FROM render_jobs r
+     JOIN projects p ON r.project_id = p.id
+     WHERE r.id = ? AND p.owner_id = ?`,
+    [id, session.user.id]
+  );
 
   if (!job) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -43,16 +41,14 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const db = getDb();
 
   // Verify ownership via project
-  const job = db
-    .prepare(
-      `SELECT r.id FROM render_jobs r
-       JOIN projects p ON r.project_id = p.id
-       WHERE r.id = ? AND p.owner_id = ?`
-    )
-    .get(id, session.user.id);
+  const job = await queryOne(
+    `SELECT r.id FROM render_jobs r
+     JOIN projects p ON r.project_id = p.id
+     WHERE r.id = ? AND p.owner_id = ?`,
+    [id, session.user.id]
+  );
 
   if (!job) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -80,8 +76,9 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   if (updates.length > 0) {
     values.push(id);
-    db.prepare(`UPDATE render_jobs SET ${updates.join(", ")} WHERE id = ?`).run(
-      ...values
+    await execute(
+      `UPDATE render_jobs SET ${updates.join(", ")} WHERE id = ?`,
+      values
     );
   }
 

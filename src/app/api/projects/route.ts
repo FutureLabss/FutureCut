@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { queryAll, execute } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
 // GET /api/projects — List user's projects
@@ -14,12 +14,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = getDb();
-  const projects = db
-    .prepare(
-      "SELECT id, name, thumbnail_url, is_public, created_at, updated_at FROM projects WHERE owner_id = ? ORDER BY updated_at DESC"
-    )
-    .all(session.user.id);
+  const projects = await queryAll(
+    "SELECT id, name, thumbnail_url, is_public, created_at, updated_at FROM projects WHERE owner_id = ? ORDER BY updated_at DESC",
+    [session.user.id]
+  );
 
   return NextResponse.json({ projects });
 }
@@ -35,7 +33,6 @@ export async function POST(req: NextRequest) {
   const name = body.name || "Untitled Project";
 
   const id = uuidv4();
-  const db = getDb();
 
   // Create initial project data payload with valid tracks
   const initialProject = {
@@ -61,9 +58,10 @@ export async function POST(req: NextRequest) {
     assets: {},
   };
 
-  db.prepare(
-    "INSERT INTO projects (id, owner_id, name, project_data) VALUES (?, ?, ?, ?)"
-  ).run(id, session.user.id, name, JSON.stringify(payload));
+  await execute(
+    "INSERT INTO projects (id, owner_id, name, project_data) VALUES (?, ?, ?, ?)",
+    [id, session.user.id, name, JSON.stringify(payload)]
+  );
 
   return NextResponse.json({ id, name }, { status: 201 });
 }

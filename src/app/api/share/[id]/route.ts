@@ -3,7 +3,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { queryOne } from "@/lib/db";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,26 +12,22 @@ interface RouteParams {
 // GET /api/share/[id] — Get public share data (no auth required)
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
-  const db = getDb();
 
   // Look up the render job and its project
-  const data = db
-    .prepare(
-      `SELECT r.id as job_id, r.output_url, r.status,
-              p.name as project_name, p.is_public
-       FROM render_jobs r
-       JOIN projects p ON r.project_id = p.id
-       WHERE r.id = ?`
-    )
-    .get(id) as
-    | {
-        job_id: string;
-        output_url: string | null;
-        status: string;
-        project_name: string;
-        is_public: number;
-      }
-    | undefined;
+  const data = await queryOne<{
+    job_id: string;
+    output_url: string | null;
+    status: string;
+    project_name: string;
+    is_public: number;
+  }>(
+    `SELECT r.id as job_id, r.output_url, r.status,
+            p.name as project_name, p.is_public
+     FROM render_jobs r
+     JOIN projects p ON r.project_id = p.id
+     WHERE r.id = ?`,
+    [id]
+  );
 
   if (!data) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

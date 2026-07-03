@@ -8,10 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import path from "path";
-import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+import { saveFile } from "@/lib/storage";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -27,24 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  // Create upload directory for project
-  const projectDir = path.join(UPLOAD_DIR, projectId || "general");
-  if (!fs.existsSync(projectDir)) {
-    fs.mkdirSync(projectDir, { recursive: true });
-  }
-
   // Generate unique filename
   const ext = path.extname(file.name) || ".mp4";
   const assetId = uuidv4();
-  const filename = `${assetId}${ext}`;
-  const filepath = path.join(projectDir, filename);
+  const folder = projectId || "general";
+  const filename = `${folder}/${assetId}${ext}`;
 
-  // Write file to disk
-  const buffer = Buffer.from(await file.arrayBuffer());
-  fs.writeFileSync(filepath, buffer);
-
-  // Return the public URL
-  const url = `/uploads/${projectId || "general"}/${filename}`;
+  // Save the file (via Supabase or local disk fallback)
+  const url = await saveFile(file, "uploads", filename);
 
   return NextResponse.json({
     assetId,

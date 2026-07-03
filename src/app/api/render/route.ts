@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { queryOne, execute } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
 // POST /api/render — Submit a render job
@@ -24,12 +24,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = getDb();
-
   // Verify project ownership
-  const project = db
-    .prepare("SELECT id FROM projects WHERE id = ? AND owner_id = ?")
-    .get(projectId, session.user.id);
+  const project = await queryOne(
+    "SELECT id FROM projects WHERE id = ? AND owner_id = ?",
+    [projectId, session.user.id]
+  );
 
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -37,9 +36,10 @@ export async function POST(req: NextRequest) {
 
   const id = uuidv4();
 
-  db.prepare(
-    "INSERT INTO render_jobs (id, project_id, status, progress) VALUES (?, ?, 'queued', 0)"
-  ).run(id, projectId);
+  await execute(
+    "INSERT INTO render_jobs (id, project_id, status, progress) VALUES (?, ?, 'queued', 0)",
+    [id, projectId]
+  );
 
   return NextResponse.json({ id, status: "queued", progress: 0 }, { status: 201 });
 }
