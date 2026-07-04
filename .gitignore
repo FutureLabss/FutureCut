@@ -47,7 +47,7 @@ next-env.d.ts
 /*.md
 
 # patches
-0001-Fix-generic-auth-error-message-masking-server-db-fai.patch
+*.patch
 
 # Local Netlify folder
 .netlify

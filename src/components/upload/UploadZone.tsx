@@ -33,25 +33,46 @@ export function UploadZone() {
       setError(null);
 
       try {
-        // Upload file to the server
-        const formData = new FormData();
-        formData.append("file", file);
-        if (serverProjectId) {
-          formData.append("projectId", serverProjectId);
-        }
-
-        const uploadRes = await fetch("/api/upload", {
+        // Step 1: ask our server for a signed upload URL. This request
+        // only sends the filename, never the file itself, so it stays
+        // far under any serverless payload limit.
+        const signRes = await fetch("/api/upload/sign", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            projectId: serverProjectId || undefined,
+          }),
         });
 
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to upload video to server");
+        if (!signRes.ok) {
+          const errData = await signRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to prepare upload");
         }
 
-        const uploadData = await uploadRes.json();
-        const serverUrl = uploadData.url;
+        const { uploadUrl, publicUrl } = await signRes.json();
+
+        // Step 2: upload the actual file straight to Supabase Storage
+        // from the browser. This bypasses our Netlify function entirely,
+        // so there's no 6MB payload cap or 10s execution limit here —
+        // the browser talks directly to Supabase.
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+            "x-upsert": "true",
+          },
+          body: file,
+        });
+
+        if (!putRes.ok) {
+          const errText = await putRes.text().catch(() => "");
+          throw new Error(
+            errText || "Failed to upload video to storage. Please try again."
+          );
+        }
+
+        const serverUrl = publicUrl;
 
         // Create object URL
         const objectUrl = URL.createObjectURL(file);
