@@ -32,12 +32,20 @@ export async function POST(req: NextRequest) {
   const filename = `${folder}/${assetId}${ext}`;
 
   // Save the file (via Supabase or local disk fallback)
-  const url = await saveFile(file, "uploads", filename);
-
-  return NextResponse.json({
-    assetId,
-    url,
-    filename: file.name,
-    size: file.size,
-  });
+  try {
+    const url = await saveFile(file, "uploads", filename);
+    return NextResponse.json({
+      assetId,
+      url,
+      filename: file.name,
+      size: file.size,
+    });
+  } catch (err) {
+    console.error("[upload API] upload failed:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to upload file to storage" },
+      { status: 500 }
+    );
+  }
 }
+

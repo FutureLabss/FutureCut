@@ -46,7 +46,8 @@ export function UploadZone() {
         });
 
         if (!uploadRes.ok) {
-          throw new Error("Failed to upload video to server");
+          const errData = await uploadRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to upload video to server");
         }
 
         const uploadData = await uploadRes.json();
