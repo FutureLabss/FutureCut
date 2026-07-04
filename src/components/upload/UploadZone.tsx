@@ -216,18 +216,29 @@ async function extractMetadata(
     const video = document.createElement("video");
     video.preload = "metadata";
 
+    // Environment attributes: bypass browser sandbox restrictions that block
+    // visual frame decoding. Without these, some browsers (mobile Safari,
+    // certain Chromium builds) refuse to populate the video frame buffer,
+    // which can hold a hardware codec lock and starve WebCodecs downstream.
+    video.playsInline = true;
+    video.muted = true;
+    video.crossOrigin = "anonymous";
+
     video.onloadedmetadata = () => {
       resolve({
         duration: video.duration,
         width: video.videoWidth,
         height: video.videoHeight,
       });
-      video.src = "";
+      // Release the element fully to free any codec resources
+      video.removeAttribute("src");
+      video.load();
     };
 
     video.onerror = () => {
       reject(new Error("Failed to load video metadata"));
-      video.src = "";
+      video.removeAttribute("src");
+      video.load();
     };
 
     video.src = objectUrl;

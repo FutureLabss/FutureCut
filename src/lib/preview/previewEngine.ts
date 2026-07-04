@@ -26,6 +26,8 @@ interface ActiveSource {
   decoder: Decoder;
   frameCache: FrameCache;
   config: DemuxerConfig;
+  /** Buffered samples waiting for decoder capacity (backpressure queue) */
+  pendingSamples: DemuxedSample[];
 }
 
 /**
@@ -39,6 +41,9 @@ export class PreviewEngine {
   private currentTime = 0; // seconds
   private fps = 30;
   private lastFrameTime = 0;
+
+  // Guards against overlapping async renders within the tick loop
+  private renderPending = false;
 
   // Offscreen canvas for rendering the composite frame
   private offscreenCanvas: OffscreenCanvas | null = null;
@@ -97,7 +102,7 @@ export class PreviewEngine {
     }
 
     const demuxer = new Demuxer();
-    const frameCache = new FrameCache(15);
+    const frameCache = new FrameCache(30);
 
     return new Promise<DemuxerConfig | null>((resolve) => {
       let decoder: Decoder;
@@ -108,6 +113,11 @@ export class PreviewEngine {
 
         decoder = new Decoder({
           onFrame: async (frame: VideoFrame) => {
+            // Immediately try to feed more samples since the decoder
+            // just freed a pending slot (pendingFrames was decremented
+            // before this callback). This keeps the pipeline saturated.
+            this.drainSampleQueue(asset.id);
+
             // Cache the frame as ImageBitmap, then close the VideoFrame
             try {
               await frameCache.put(frame.timestamp, frame);
@@ -140,6 +150,7 @@ export class PreviewEngine {
             decoder,
             frameCache,
             config: cfg,
+            pendingSamples: [],
           });
 
           resolve(cfg);
@@ -152,15 +163,13 @@ export class PreviewEngine {
       const onSamples = (samples: DemuxedSample[]) => {
         if (!decoder?.isConfigured) return;
 
-        for (const sample of samples) {
-          const chunk = new EncodedVideoChunk({
-            type: sample.isKeyframe ? "key" : "delta",
-            timestamp: sample.timestamp,
-            duration: sample.duration,
-            data: sample.data,
-          });
-
-          decoder.decode(chunk);
+        // Queue all samples instead of feeding them directly.
+        // The decoder has a backpressure limit (MAX_PENDING = 3), so
+        // feeding 100+ samples in a loop silently drops most of them.
+        const source = this.sources.get(asset.id);
+        if (source) {
+          source.pendingSamples.push(...samples);
+          this.drainSampleQueue(asset.id);
         }
       };
 
@@ -225,9 +234,16 @@ export class PreviewEngine {
       },
     });
 
-    // Extract the composite image bitmap and push to the canvas display
+    // Guard: only transfer the bitmap if the offscreen canvas has valid content.
+    // transferToImageBitmap() can return a 0x0 bitmap if the compositor wrote
+    // nothing (all frame lookups returned null), which would freeze the display
+    // by overwriting the last good frame with a transparent/empty image.
     const compositeBitmap = this.offscreenCanvas.transferToImageBitmap();
-    this.renderCallback?.(compositeBitmap, width, height);
+    if (compositeBitmap.width > 0 && compositeBitmap.height > 0) {
+      this.renderCallback?.(compositeBitmap, width, height);
+    } else {
+      compositeBitmap.close();
+    }
 
     // Sync HTML audio tracks current position
     this.syncAudioPositions(timeSeconds);
@@ -293,6 +309,7 @@ export class PreviewEngine {
   play(): void {
     if (this.isPlaying) return;
     this.isPlaying = true;
+    this.renderPending = false;
     this.lastFrameTime = performance.now();
     
     // Play active audio elements
@@ -308,6 +325,7 @@ export class PreviewEngine {
    */
   pause(): void {
     this.isPlaying = false;
+    this.renderPending = false;
     if (this.animFrameId !== null) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
@@ -353,28 +371,64 @@ export class PreviewEngine {
   // Private
   // ============================================================
 
+  /**
+   * Feed queued samples to the decoder until backpressure kicks in.
+   * Called after each frame is decoded (freeing a pending slot) and
+   * when new samples arrive from the demuxer.
+   */
+  private drainSampleQueue(assetId: string): void {
+    const source = this.sources.get(assetId);
+    if (!source || !source.decoder.isConfigured) return;
+
+    while (source.pendingSamples.length > 0) {
+      const sample = source.pendingSamples[0];
+      const chunk = new EncodedVideoChunk({
+        type: sample.isKeyframe ? "key" : "delta",
+        timestamp: sample.timestamp,
+        duration: sample.duration,
+        data: sample.data,
+      });
+
+      const accepted = source.decoder.decode(chunk);
+      if (!accepted) break; // Decoder at capacity — retry on next frame output
+      source.pendingSamples.shift();
+    }
+  }
+
   private tick = (): void => {
     if (!this.isPlaying) return;
+
+    // Always schedule the next frame first so the loop never silently dies
+    this.animFrameId = requestAnimationFrame(this.tick);
 
     const now = performance.now();
     const elapsed = (now - this.lastFrameTime) / 1000; // seconds
 
-    if (elapsed >= 1 / this.fps) {
-      this.currentTime += elapsed;
-      this.lastFrameTime = now;
+    if (elapsed < 1 / this.fps) return;
 
-      // Check if we've reached the end of the timeline
-      if (this.project) {
-        if (this.currentTime >= this.project.duration) {
-          this.pause();
-          return;
-        }
+    // Skip this tick if a previous async seekTo is still rendering.
+    // Without this guard, overlapping seekTo() calls pile up and the
+    // compositor/frameCache races cause the canvas to freeze on a stale frame.
+    if (this.renderPending) return;
+
+    this.currentTime += elapsed;
+    this.lastFrameTime = now;
+
+    // Check if we've reached the end of the timeline
+    if (this.project) {
+      if (this.currentTime >= this.project.duration) {
+        this.pause();
+        return;
       }
-
-      this.seekTo(this.currentTime);
     }
 
-    this.animFrameId = requestAnimationFrame(this.tick);
+    // Await seekTo so the render callback fires before the next tick
+    this.renderPending = true;
+    this.seekTo(this.currentTime)
+      .catch((err) => console.error("PreviewEngine tick render error:", err))
+      .finally(() => {
+        this.renderPending = false;
+      });
   };
 }
 

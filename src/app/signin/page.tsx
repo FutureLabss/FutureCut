@@ -8,6 +8,26 @@ import { useState, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+// Maps the `code` thrown by authorize() in src/lib/auth.ts to a
+// user-facing message. Falls back to a generic message for anything
+// unrecognized (e.g. NextAuth's own internal errors).
+function getErrorMessage(code: string, isSignUp: boolean): string {
+  switch (code) {
+    case "email_in_use":
+      return "Could not create account. That email is already in use.";
+    case "invalid_credentials":
+      return "Invalid email or password.";
+    case "missing_fields":
+      return "Please fill in all fields.";
+    case "server_error":
+      return "Something went wrong on our end. Please try again in a moment.";
+    default:
+      return isSignUp
+        ? "Could not create account. Please try again."
+        : "Could not sign in. Please try again.";
+  }
+}
+
 export default function SignInPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -32,11 +52,7 @@ export default function SignInPage() {
       });
 
       if (result?.error) {
-        setError(
-          isSignUp
-            ? "Could not create account. Email may already be in use."
-            : "Invalid email or password."
-        );
+        setError(getErrorMessage(result.error, isSignUp));
       } else {
         router.push("/dashboard");
         router.refresh();

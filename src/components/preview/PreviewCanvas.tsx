@@ -45,9 +45,22 @@ export function PreviewCanvas() {
         return;
       }
 
+      // ReadyState guard: only draw if the bitmap carries actual pixel data.
+      // This mirrors the HTMLVideoElement readyState >= 2 (HAVE_CURRENT_DATA)
+      // check — in the WebCodecs pipeline, an empty bitmap means the decoder
+      // hasn't populated the frame buffer yet. Drawing it would overwrite the
+      // last good frame and freeze the visual preview.
+      if (bitmap.width === 0 || bitmap.height === 0) {
+        bitmap.close();
+        return;
+      }
+
       // Clear and draw the frame
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      // Release the ImageBitmap after painting to free GPU memory promptly
+      bitmap.close();
     });
 
     // Update project state in the engine

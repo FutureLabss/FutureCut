@@ -46,3 +46,5 @@ next-env.d.ts
 # root markdown files
 /*.md
 
+# patches
+0001-Fix-generic-auth-error-message-masking-server-db-fai.patch
