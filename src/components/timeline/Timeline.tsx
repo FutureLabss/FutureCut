@@ -154,7 +154,7 @@ export function Timeline() {
       {/* 2. Left headers + Right tracks main content split */}
       <div className="flex flex-1 min-h-0 relative">
         {/* Left Column: Track Headers */}
-        <div className="w-[200px] border-r border-[var(--border)] bg-[var(--bg-panel)] shrink-0 flex flex-col select-none">
+        <div className="w-[60px] sm:w-[200px] border-r border-[var(--border)] bg-[var(--bg-panel)] shrink-0 flex flex-col select-none">
           {/* Alignment placeholder matching TimeRuler height */}
           <div className="h-6 border-b border-[var(--border)] bg-[var(--bg-surface)] shrink-0" />
 
@@ -164,10 +164,10 @@ export function Timeline() {
               className="h-[var(--track-height)] border-b border-[var(--border)] flex flex-col justify-between p-1.5 shrink-0 bg-[var(--bg-surface)]/20"
             >
               {/* Type, name, delete */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start h-full sm:h-auto gap-0.5 sm:gap-0">
+                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                   <span
-                    className={`w-1.5 h-1.5 rounded-full ${
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                       track.type === "video"
                         ? "bg-[var(--accent)]"
                         : track.type === "audio"
@@ -175,30 +175,33 @@ export function Timeline() {
                           : "bg-orange-500"
                     }`}
                   />
-                  <span className="text-[10px] font-bold text-[var(--text-primary)] truncate uppercase">
+                  <span className="text-[10px] font-bold text-[var(--text-primary)] truncate uppercase hidden sm:block">
                     {track.type} (Lvl {track.order})
+                  </span>
+                  <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase sm:hidden leading-none">
+                    {track.type[0].toUpperCase()}{track.type !== "audio" ? track.order : ""}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5 sm:gap-1">
                   {/* Stacking Order buttons */}
                   {track.type !== "audio" && (
-                    <>
+                    <div className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1 leading-none">
                       <button
                         onClick={() => moveTrackUp(track)}
-                        className="text-[9px] hover:text-[var(--text-primary)] text-[var(--text-muted)]"
+                        className="text-[9px] hover:text-[var(--text-primary)] text-[var(--text-muted)] p-0.5 sm:p-0"
                         title="Bring Layer Forward"
                       >
                         ▲
                       </button>
                       <button
                         onClick={() => moveTrackDown(track)}
-                        className="text-[9px] hover:text-[var(--text-primary)] text-[var(--text-muted)]"
+                        className="text-[9px] hover:text-[var(--text-primary)] text-[var(--text-muted)] p-0.5 sm:p-0"
                         title="Send Layer Backward"
                       >
                         ▼
                       </button>
-                    </>
+                    </div>
                   )}
                   {/* Add Text overlay helper */}
                   {track.type === "text" && (
@@ -223,11 +226,11 @@ export function Timeline() {
 
               {/* Audio Controls */}
               {track.type === "audio" && (
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1 w-full justify-center sm:justify-start">
                   {/* Mute toggle button */}
                   <button
                     onClick={() => setTrackMuted(track.id, !track.muted)}
-                    className={`text-[9px] px-1 rounded transition-colors ${
+                    className={`text-[8px] sm:text-[9px] px-1 py-0.5 rounded transition-colors ${
                       track.muted
                         ? "bg-[var(--danger)] text-white"
                         : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-white"
@@ -244,7 +247,7 @@ export function Timeline() {
                     step="0.05"
                     value={track.volume ?? 1.0}
                     onChange={(e) => setTrackVolume(track.id, Number(e.target.value))}
-                    className="flex-1 h-1 accent-green-500 cursor-pointer"
+                    className="flex-1 h-1 accent-green-500 cursor-pointer hidden sm:block"
                     title="Volume"
                   />
                 </div>

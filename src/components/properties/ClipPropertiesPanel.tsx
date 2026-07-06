@@ -59,7 +59,7 @@ export function ClipPropertiesPanel() {
 
   if (!selectedClip || !parentTrack) {
     return (
-      <div className="w-[300px] bg-[var(--bg-panel)] border-l border-[var(--border)] p-4 flex flex-col justify-center items-center text-center">
+      <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] p-4 flex flex-col justify-center items-center text-center">
         <span className="text-2xl mb-2">👈</span>
         <p className="text-xs text-[var(--text-secondary)]">
           Select a clip on the timeline to edit properties
@@ -134,7 +134,7 @@ export function ClipPropertiesPanel() {
       ?.keyframes ?? [];
 
   return (
-    <div className="w-[300px] bg-[var(--bg-panel)] border-l border-[var(--border)] flex flex-col shrink-0 overflow-y-auto">
+    <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0 overflow-y-auto">
       {/* Title */}
       <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg-surface)]/20">
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
@@ -150,16 +150,56 @@ export function ClipPropertiesPanel() {
 
       <div className="p-4 space-y-5">
         {/* ============================================================
-            Section 1: Timeline Info
+            Section 1: Timeline Info & Position Inputs
             ============================================================ */}
-        <div className="space-y-1">
-          <label className="text-[10px] text-[var(--text-secondary)] uppercase">
-            Timeline Info
+        <div className="space-y-2">
+          <label className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
+            Timeline Info & Position
           </label>
-          <div className="text-xs space-y-1 font-mono text-[var(--text-primary)] bg-[var(--bg-surface)] p-2 rounded border border-[var(--border)]">
-            <div>Start: {selectedClip.startTime.toFixed(2)}s</div>
-            <div>Duration: {duration.toFixed(2)}s</div>
-            <div>Playhead Offset: {clipRelativePlayhead.toFixed(2)}s</div>
+          <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-3">
+            <div className="text-xs space-y-1.5 font-mono text-[var(--text-primary)] bg-[var(--bg-panel)] p-2 rounded border border-[var(--border)]">
+              <div>Duration: {duration.toFixed(2)}s</div>
+              <div>Playhead Offset: {clipRelativePlayhead.toFixed(2)}s</div>
+            </div>
+
+            {/* Editable start time */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-[var(--text-secondary)]">Start Time:</span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={Number(selectedClip.startTime.toFixed(2))}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (!isNaN(val) && val >= 0) {
+                      useEditorStore.getState().moveClip(selectedClip!.id, val, parentTrack!.id);
+                    }
+                  }}
+                  className="w-20 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border)] font-mono text-right text-white focus:outline-none focus:border-[var(--accent)]"
+                />
+                <span className="text-[10px] text-[var(--text-muted)]">s</span>
+              </div>
+            </div>
+
+            {/* Editable Track (Move Clip) */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-[var(--text-secondary)]">Move to Track:</span>
+              <select
+                value={parentTrack!.id}
+                onChange={(e) => {
+                  useEditorStore.getState().moveClip(selectedClip!.id, selectedClip!.startTime, e.target.value);
+                }}
+                className="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border)] text-white focus:outline-none text-[10px] max-w-[120px] truncate"
+              >
+                {project.tracks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.type.toUpperCase()} ({t.id})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

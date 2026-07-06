@@ -135,7 +135,7 @@ export default function DashboardPage() {
           </h1>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-[var(--text-muted)]">
+            <span className="text-sm text-[var(--text-muted)] truncate max-w-[120px] sm:max-w-none">
               {session?.user?.name || session?.user?.email}
             </span>
             <button
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                   </p>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 mt-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => startRename(project)}
                       className="px-2 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"

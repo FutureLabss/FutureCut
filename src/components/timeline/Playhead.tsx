@@ -61,6 +61,40 @@ export function Playhead({ zoom, timelineHeight }: PlayheadProps) {
     [zoom, setPlayhead, setIsPlaying]
   );
 
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.stopPropagation();
+      isDragging.current = true;
+      setIsPlaying(false);
+
+      const handleTouchMove = (moveEvent: TouchEvent) => {
+        if (!isDragging.current) return;
+
+        // Find the timeline container to calculate position
+        const container = (e.target as HTMLElement).closest(
+          "[data-timeline-scroll]"
+        ) as HTMLElement | null;
+        if (!container) return;
+
+        const rect = container.getBoundingClientRect();
+        const scrollLeft = container.scrollLeft;
+        const mouseX = moveEvent.touches[0].clientX - rect.left + scrollLeft;
+        const time = Math.max(0, mouseX / zoom);
+        setPlayhead(time);
+      };
+
+      const handleTouchEnd = () => {
+        isDragging.current = false;
+        window.removeEventListener("touchmove", handleTouchMove);
+        window.removeEventListener("touchend", handleTouchEnd);
+      };
+
+      window.addEventListener("touchmove", handleTouchMove, { passive: true });
+      window.addEventListener("touchend", handleTouchEnd);
+    },
+    [zoom, setPlayhead, setIsPlaying]
+  );
+
   return (
     <div
       className="absolute top-0 z-30 pointer-events-none"
@@ -73,6 +107,7 @@ export function Playhead({ zoom, timelineHeight }: PlayheadProps) {
       <div
         className="pointer-events-auto cursor-grab active:cursor-grabbing"
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
       >
         {/* Triangle marker */}
         <div

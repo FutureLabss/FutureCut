@@ -92,6 +92,42 @@ export function ClipBlock({ clip, zoom, trackType }: ClipBlockProps) {
     [clip, zoom, trimStart, trimEnd]
   );
 
+  const handleTrimTouchStart = useCallback(
+    (e: React.TouchEvent, mode: DragMode) => {
+      e.stopPropagation();
+
+      setDragMode(mode);
+      dragStartRef.current = {
+        x: e.touches[0].clientX,
+        originalValue:
+          mode === "trim-start" ? clip.sourceInPoint : clip.sourceOutPoint,
+      };
+
+      const handleTouchMove = (moveEvent: TouchEvent) => {
+        const deltaX = moveEvent.touches[0].clientX - dragStartRef.current.x;
+        const deltaTime = deltaX / zoom;
+
+        if (mode === "trim-start") {
+          const newInPoint = dragStartRef.current.originalValue + deltaTime;
+          trimStart(clip.id, newInPoint);
+        } else if (mode === "trim-end") {
+          const newOutPoint = dragStartRef.current.originalValue + deltaTime;
+          trimEnd(clip.id, newOutPoint);
+        }
+      };
+
+      const handleTouchEnd = () => {
+        setDragMode(null);
+        window.removeEventListener("touchmove", handleTouchMove);
+        window.removeEventListener("touchend", handleTouchEnd);
+      };
+
+      window.addEventListener("touchmove", handleTouchMove, { passive: true });
+      window.addEventListener("touchend", handleTouchEnd);
+    },
+    [clip, zoom, trimStart, trimEnd]
+  );
+
   // ============================================================
   // Selection
   // ============================================================
@@ -179,6 +215,7 @@ export function ClipBlock({ clip, zoom, trackType }: ClipBlockProps) {
       <div
         className="absolute left-0 top-0 bottom-0 w-2.5 cursor-col-resize hover:bg-white/20 rounded-l-md transition-colors z-10 flex items-center justify-center pointer-events-auto"
         onMouseDown={(e) => handleTrimMouseDown(e, "trim-start")}
+        onTouchStart={(e) => handleTrimTouchStart(e, "trim-start")}
       >
         <div className="w-0.5 h-4 bg-white/40 rounded-full group-hover:bg-white/60" />
       </div>
@@ -187,6 +224,7 @@ export function ClipBlock({ clip, zoom, trackType }: ClipBlockProps) {
       <div
         className="absolute right-0 top-0 bottom-0 w-2.5 cursor-col-resize hover:bg-white/20 rounded-r-md transition-colors z-10 flex items-center justify-center pointer-events-auto"
         onMouseDown={(e) => handleTrimMouseDown(e, "trim-end")}
+        onTouchStart={(e) => handleTrimTouchStart(e, "trim-end")}
       >
         <div className="w-0.5 h-4 bg-white/40 rounded-full group-hover:bg-white/60" />
       </div>

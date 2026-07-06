@@ -28,6 +28,7 @@ import {
 
 export function Editor() {
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"timeline" | "properties">("timeline");
   const project = useEditorStore((s) => s.project);
   const assets = useEditorStore((s) => s.assets);
   const saveStatus = useEditorStore((s) => s.saveStatus);
@@ -40,6 +41,15 @@ export function Editor() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Auto-switch to properties tab on mobile/tablet when a clip is selected
+  useEffect(() => {
+    if (selectedClipId) {
+      setActiveTab("properties");
+    } else {
+      setActiveTab("timeline");
+    }
+  }, [selectedClipId]);
 
   // Bind the temporal store reactively to check past/future states
   const { undo, redo, pastStates, futureStates } = useStore(useEditorStore.temporal);
@@ -235,17 +245,53 @@ export function Editor() {
           <UploadZone />
         ) : (
           <>
-            {/* Preview & Properties Sidebar side-by-side */}
-            <div className="flex-1 flex min-h-0">
+            {/* Preview & Properties Sidebar - adapts side-by-side or stacked tabbed layout */}
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0">
               <div className="flex-1 flex flex-col items-center justify-center bg-[var(--bg-app)] min-h-0 p-4">
                 <PreviewCanvas />
                 <TransportControls />
               </div>
+
+              {/* Desktop Properties Sidebar (hidden on mobile/tablet) */}
+              <div className="hidden lg:flex shrink-0">
+                <ClipPropertiesPanel />
+              </div>
+            </div>
+
+            {/* Mobile/Tablet Workspace Tabs Switcher */}
+            <div className="flex lg:hidden border-t border-[var(--border)] bg-[var(--bg-panel)] shrink-0">
+              <button
+                onClick={() => setActiveTab("timeline")}
+                className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-all ${
+                  activeTab === "timeline"
+                    ? "border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-hover)]"
+                    : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Timeline
+              </button>
+              <button
+                onClick={() => setActiveTab("properties")}
+                className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === "properties"
+                    ? "border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-hover)]"
+                    : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Properties
+                {selectedClipId && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                )}
+              </button>
+            </div>
+
+            {/* Mobile/Tablet Properties Panel (visible when properties tab is active) */}
+            <div className={`${activeTab === "properties" ? "flex" : "hidden"} lg:hidden h-[280px] sm:h-[320px] border-t border-[var(--border)] overflow-hidden shrink-0`}>
               <ClipPropertiesPanel />
             </div>
 
-            {/* Timeline */}
-            <div className="shrink-0 border-t border-[var(--border)]">
+            {/* Timeline (always visible on desktop, tabbed on mobile) */}
+            <div className={`${activeTab === "timeline" ? "block" : "hidden"} lg:block shrink-0 border-t border-[var(--border)]`}>
               <Timeline />
             </div>
           </>
