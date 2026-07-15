@@ -35,6 +35,14 @@ export async function POST(req: NextRequest) {
   const filename = `${projectId}/${assetId}${ext}`;
 
   try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (!supabaseUrl) {
+      // Local dev/testing fallback
+      const uploadUrl = `${req.nextUrl.origin}/api/upload/local-upload?filename=${encodeURIComponent(filename)}`;
+      const publicUrl = `/api/uploads/${filename}`;
+      return NextResponse.json({ assetId, uploadUrl, publicUrl });
+    }
+
     const { uploadUrl, publicUrl } = await createSignedUploadUrl(
       "uploads",
       filename

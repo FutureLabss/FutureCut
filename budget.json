@@ -1,0 +1,16 @@
+[
+  {
+    "path": "/*",
+    "wasCalled": true,
+    "resourceSizes": [
+      {
+        "resourceType": "script",
+        "budget": 2048000
+      },
+      {
+        "resourceType": "total",
+        "budget": 4096000
+      }
+    ]
+  }
+]
