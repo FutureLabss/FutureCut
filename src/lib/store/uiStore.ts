@@ -22,6 +22,12 @@ export interface UIState {
   isExporting: boolean;
   /** Export progress 0-100, null if not exporting */
   exportProgress: number | null;
+  /** Whether the preview engine is buffering (decoder behind playhead) */
+  isBuffering: boolean;
+  /** Whether the preview engine is still decoding the initial video */
+  isDecoding: boolean;
+  /** Decode progress 0–100 (null when not decoding) */
+  decodeProgress: number | null;
 }
 
 export interface UIActions {
@@ -33,6 +39,9 @@ export interface UIActions {
   setScrollX: (x: number) => void;
   setExporting: (exporting: boolean) => void;
   setExportProgress: (progress: number | null) => void;
+  setBuffering: (buffering: boolean) => void;
+  setDecoding: (decoding: boolean) => void;
+  setDecodeProgress: (progress: number | null) => void;
 }
 
 const MIN_ZOOM = 10; // 10px per second (zoomed out)
@@ -47,6 +56,9 @@ export const useUIStore = create<UIState & UIActions>()((set) => ({
   timelineScrollX: 0,
   isExporting: false,
   exportProgress: null,
+  isBuffering: false,
+  isDecoding: false,
+  decodeProgress: null,
 
   // Actions
   setPlayhead: (time) => set({ playheadTime: Math.max(0, time) }),
@@ -59,4 +71,7 @@ export const useUIStore = create<UIState & UIActions>()((set) => ({
   setExporting: (exporting) =>
     set({ isExporting: exporting, exportProgress: exporting ? 0 : null }),
   setExportProgress: (progress) => set({ exportProgress: progress }),
+  setBuffering: (buffering) => set({ isBuffering: buffering }),
+  setDecoding: (decoding) => set({ isDecoding: decoding }),
+  setDecodeProgress: (progress) => set({ decodeProgress: progress }),
 }));

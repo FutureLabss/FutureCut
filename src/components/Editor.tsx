@@ -79,7 +79,10 @@ export function Editor() {
       // Space: Play/Pause
       if (e.key === " " && e.target === document.body) {
         e.preventDefault();
-        useUIStore.getState().togglePlay();
+        const isDecoding = useUIStore.getState().isDecoding;
+        if (!isDecoding) {
+          useUIStore.getState().togglePlay();
+        }
         return;
       }
 

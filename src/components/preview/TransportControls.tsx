@@ -14,6 +14,7 @@ import { formatTimecode } from "@/lib/utils/time";
 export function TransportControls() {
   const playheadTime = useUIStore((s) => s.playheadTime);
   const isPlaying = useUIStore((s) => s.isPlaying);
+  const isDecoding = useUIStore((s) => s.isDecoding);
   const togglePlay = useUIStore((s) => s.togglePlay);
   const setPlayhead = useUIStore((s) => s.setPlayhead);
   const project = useEditorStore((s) => s.project);
@@ -54,7 +55,8 @@ export function TransportControls() {
         {/* Skip to start */}
         <button
           onClick={() => setPlayhead(0)}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          disabled={isDecoding}
+          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
           title="Go to start"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -65,7 +67,8 @@ export function TransportControls() {
         {/* Step back one frame */}
         <button
           onClick={handleStepBack}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          disabled={isDecoding}
+          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
           title="Step back one frame"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -76,8 +79,9 @@ export function TransportControls() {
         {/* Play/Pause */}
         <button
           onClick={togglePlay}
-          className="p-2 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors"
-          title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+          disabled={isDecoding}
+          className="p-2 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          title={isDecoding ? "Preparing video…" : isPlaying ? "Pause (Space)" : "Play (Space)"}
         >
           {isPlaying ? (
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -93,7 +97,8 @@ export function TransportControls() {
         {/* Step forward one frame */}
         <button
           onClick={handleStepForward}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          disabled={isDecoding}
+          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
           title="Step forward one frame"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -104,7 +109,8 @@ export function TransportControls() {
         {/* Skip to end */}
         <button
           onClick={() => setPlayhead(project.duration)}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          disabled={isDecoding}
+          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
           title="Go to end"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
