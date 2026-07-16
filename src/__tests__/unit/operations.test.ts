@@ -29,6 +29,8 @@ import {
   setClipSpeed,
   setClipKeyframe,
   removeClipKeyframe,
+  applyAutoReframe,
+  setClipDenoised,
 } from "@/lib/model/operations";
 import type { Track, Clip, Filter, Keyframe } from "@/lib/model/types";
 import { clipDuration, clipEndTime, deriveProjectDuration } from "@/lib/model/types";
@@ -859,3 +861,66 @@ describe("deriveProjectDuration", () => {
     expect(deriveProjectDuration(tracks)).toBe(5);
   });
 });
+
+// ============================================================
+// Tests: AI-Assisted Editing (Phase 5)
+// ============================================================
+
+describe("applyAutoReframe", () => {
+  it("should apply scale and position keyframe tracks to clip", () => {
+    const clip = makeClip({ id: "c1", startTime: 0, sourceOutPoint: 10 });
+    const tracks = makeTracks([clip]);
+    
+    const cropKeyframes = [
+      { time: 0, x: -0.1, y: 0, scale: 1.77 },
+      { time: 5, x: 0.1, y: 0, scale: 1.77 },
+    ];
+
+    const result = applyAutoReframe(tracks, "c1", "9:16", cropKeyframes);
+    const updatedClip = result[0].clips[0];
+
+    expect(updatedClip.keyframedProps).toBeDefined();
+    expect(updatedClip.keyframedProps).toHaveLength(3); // position.x, position.y, scale
+
+    const posXTrack = updatedClip.keyframedProps?.find((t) => t.property === "position.x");
+    expect(posXTrack).toBeDefined();
+    expect(posXTrack!.keyframes).toHaveLength(2);
+    expect(posXTrack!.keyframes[0].value).toBe(-0.1);
+    expect(posXTrack!.keyframes[1].value).toBe(0.1);
+
+    const scaleTrack = updatedClip.keyframedProps?.find((t) => t.property === "scale");
+    expect(scaleTrack).toBeDefined();
+    expect(scaleTrack!.keyframes[0].value).toBe(1.77);
+  });
+});
+
+describe("setClipDenoised", () => {
+  it("should set denoising metadata non-destructively", () => {
+    const clip = makeClip({ id: "c1", sourceId: "orig_asset" });
+    const tracks = makeTracks([clip]);
+
+    // Apply denoising
+    const result1 = setClipDenoised(tracks, "c1", true, "denoised_asset");
+    const updatedClip1 = result1[0].clips[0];
+
+    expect(updatedClip1.isDenoised).toBe(true);
+    expect(updatedClip1.originalSourceId).toBe("orig_asset");
+    expect(updatedClip1.denoisedSourceId).toBe("denoised_asset");
+    expect(updatedClip1.sourceId).toBe("denoised_asset");
+
+    // Toggle back to original
+    const result2 = setClipDenoised(result1, "c1", false);
+    const updatedClip2 = result2[0].clips[0];
+
+    expect(updatedClip2.isDenoised).toBe(false);
+    expect(updatedClip2.sourceId).toBe("orig_asset");
+
+    // Toggle back to denoised
+    const result3 = setClipDenoised(result2, "c1", true);
+    const updatedClip3 = result3[0].clips[0];
+
+    expect(updatedClip3.isDenoised).toBe(true);
+    expect(updatedClip3.sourceId).toBe("denoised_asset");
+  });
+});
+

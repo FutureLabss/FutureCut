@@ -11,7 +11,7 @@
 // - Keyframe Animation Tracks (position X/Y, scale, rotation, opacity)
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { clipDuration } from "@/lib/model/types";
@@ -44,6 +44,29 @@ export function ClipPropertiesPanel() {
   const [kfValue, setKfValue] = useState<number>(0.0);
   const [kfEasing, setKfEasing] = useState<"linear" | "easeIn" | "easeOut" | "easeInOut">("linear");
 
+  // AI job states for polling
+  const [sceneJobId, setSceneJobId] = useState<string | null>(null);
+  const [sceneProgress, setSceneProgress] = useState<number>(0);
+  const [sceneStatus, setSceneStatus] = useState<string | null>(null);
+  const [sceneError, setSceneError] = useState<string | null>(null);
+
+  const [targetRatio, setTargetRatio] = useState<"9:16" | "1:1" | "4:5">("9:16");
+  const [reframeJobId, setReframeJobId] = useState<string | null>(null);
+  const [reframeProgress, setReframeProgress] = useState<number>(0);
+  const [reframeStatus, setReframeStatus] = useState<string | null>(null);
+  const [reframeError, setReframeError] = useState<string | null>(null);
+
+  const [denoiseJobId, setDenoiseJobId] = useState<string | null>(null);
+  const [denoiseProgress, setDenoiseProgress] = useState<number>(0);
+  const [denoiseStatus, setDenoiseStatus] = useState<string | null>(null);
+  const [denoiseError, setDenoiseError] = useState<string | null>(null);
+
+  // Store actions
+  const splitClipAtTimes = useEditorStore((s) => s.splitClipAtTimes);
+  const applyAutoReframe = useEditorStore((s) => s.applyAutoReframe);
+  const applyDenoisedAudio = useEditorStore((s) => s.applyDenoisedAudio);
+  const setClipDenoised = useEditorStore((s) => s.setClipDenoised);
+
   // Find the selected clip and its parent track
   let selectedClip = null;
   let parentTrack = null;
@@ -71,6 +94,200 @@ export function ClipPropertiesPanel() {
   const isVideo = parentTrack.type === "video";
   const isAudio = parentTrack.type === "audio";
   const isText = parentTrack.type === "text";
+
+  // Poll Scene Detection Job
+  useEffect(() => {
+    if (!sceneJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/ai/jobs/${sceneJobId}`);
+        if (!res.ok) throw new Error("Failed to get scene job status");
+        const job = await res.json();
+        setSceneStatus(job.status);
+        setSceneProgress(job.progress);
+
+        if (job.status === "completed") {
+          clearInterval(interval);
+          setSceneJobId(null);
+          setSceneStatus(null);
+          if (job.output_data?.boundaries && selectedClip) {
+            const absoluteTimes = job.output_data.boundaries.map(
+              (t: number) => selectedClip.startTime + t
+            );
+            splitClipAtTimes(selectedClip.id, absoluteTimes);
+          }
+        } else if (job.status === "failed") {
+          clearInterval(interval);
+          setSceneJobId(null);
+          setSceneStatus(null);
+          setSceneError(job.error_message || "Scene detection failed");
+        }
+      } catch (err: any) {
+        clearInterval(interval);
+        setSceneJobId(null);
+        setSceneStatus(null);
+        setSceneError(err.message || "Scene tracking error");
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sceneJobId, selectedClip, splitClipAtTimes]);
+
+  // Poll Auto Reframe Job
+  useEffect(() => {
+    if (!reframeJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/ai/jobs/${reframeJobId}`);
+        if (!res.ok) throw new Error("Failed to get reframe job status");
+        const job = await res.json();
+        setReframeStatus(job.status);
+        setReframeProgress(job.progress);
+
+        if (job.status === "completed") {
+          clearInterval(interval);
+          setReframeJobId(null);
+          setReframeStatus(null);
+          if (job.output_data?.cropKeyframes && selectedClip) {
+            applyAutoReframe(
+              selectedClip.id,
+              job.output_data.targetAspectRatio,
+              job.output_data.cropKeyframes
+            );
+          }
+        } else if (job.status === "failed") {
+          clearInterval(interval);
+          setReframeJobId(null);
+          setReframeStatus(null);
+          setReframeError(job.error_message || "Reframe failed");
+        }
+      } catch (err: any) {
+        clearInterval(interval);
+        setReframeJobId(null);
+        setReframeStatus(null);
+        setReframeError(err.message || "Reframe tracking error");
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [reframeJobId, selectedClip, applyAutoReframe]);
+
+  // Poll Noise Reduction Job
+  useEffect(() => {
+    if (!denoiseJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/ai/jobs/${denoiseJobId}`);
+        if (!res.ok) throw new Error("Failed to get denoise job status");
+        const job = await res.json();
+        setDenoiseStatus(job.status);
+        setDenoiseProgress(job.progress);
+
+        if (job.status === "completed") {
+          clearInterval(interval);
+          setDenoiseJobId(null);
+          setDenoiseStatus(null);
+          if (job.output_data?.processedAudioAssetId && selectedClip) {
+            applyDenoisedAudio(
+              selectedClip.id,
+              job.output_data.processedAudioAssetId,
+              job.output_data.fileName
+            );
+          }
+        } else if (job.status === "failed") {
+          clearInterval(interval);
+          setDenoiseJobId(null);
+          setDenoiseStatus(null);
+          setDenoiseError(job.error_message || "AI Denoise failed");
+        }
+      } catch (err: any) {
+        clearInterval(interval);
+        setDenoiseJobId(null);
+        setDenoiseStatus(null);
+        setDenoiseError(err.message || "Denoise tracking error");
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [denoiseJobId, selectedClip, applyDenoisedAudio]);
+
+  const handleRunSceneDetection = async () => {
+    if (!selectedClip) return;
+    const asset = assets[selectedClip.sourceId];
+    setSceneError(null);
+    setSceneStatus("queued");
+
+    try {
+      const res = await fetch("/api/ai/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          clipId: selectedClip.id,
+          jobType: "detect_scenes",
+          inputData: { asset },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to start scene detection");
+      const data = await res.json();
+      setSceneJobId(data.id);
+    } catch (err: any) {
+      setSceneError(err.message || "Failed to start job");
+      setSceneStatus(null);
+    }
+  };
+
+  const handleRunAutoReframe = async () => {
+    if (!selectedClip) return;
+    const asset = assets[selectedClip.sourceId];
+    setReframeError(null);
+    setReframeStatus("queued");
+
+    try {
+      const res = await fetch("/api/ai/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          clipId: selectedClip.id,
+          jobType: "reframe",
+          inputData: { targetAspectRatio: targetRatio, asset },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to start auto-reframe");
+      const data = await res.json();
+      setReframeJobId(data.id);
+    } catch (err: any) {
+      setReframeError(err.message || "Failed to start job");
+      setReframeStatus(null);
+    }
+  };
+
+  const handleRunNoiseReduction = async () => {
+    if (!selectedClip) return;
+    const asset = assets[selectedClip.sourceId];
+    setDenoiseError(null);
+    setDenoiseStatus("queued");
+
+    try {
+      const res = await fetch("/api/ai/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          clipId: selectedClip.id,
+          jobType: "denoise",
+          inputData: { asset },
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to start noise reduction");
+      const data = await res.json();
+      setDenoiseJobId(data.id);
+    } catch (err: any) {
+      setDenoiseError(err.message || "Failed to start job");
+      setDenoiseStatus(null);
+    }
+  };
 
   const duration = clipDuration(selectedClip);
   const clipRelativePlayhead = Math.max(0, playheadTime - selectedClip.startTime);
@@ -467,6 +684,146 @@ export function ClipPropertiesPanel() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+        {/* ============================================================
+            Section 5: AI-Assisted Editing Tools
+            ============================================================ */}
+        {(isVideo || isAudio) && (
+          <div className="space-y-2">
+            <h3 className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
+              AI-Assisted Editing
+            </h3>
+            <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-4">
+              
+              {/* Scene Detection / Auto-Split */}
+              {isVideo && (
+                <div className="space-y-1.5 pb-3 border-b border-[var(--border)]/60">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-white">Scene Cut Detection</span>
+                    <span className="text-[9px] text-[var(--text-secondary)]">CPU-only</span>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                    Auto-split clip into separate segments at editing cut boundaries.
+                  </p>
+                  
+                  {sceneStatus === "processing" || sceneStatus === "queued" ? (
+                    <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--accent)]">
+                      <div className="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+                      <span>Processing cuts... {sceneProgress}%</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleRunSceneDetection}
+                      className="w-full py-1 text-[10px] font-semibold bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white transition-colors"
+                    >
+                      Split Clip by Scenes
+                    </button>
+                  )}
+                  {sceneError && (
+                    <div className="text-[9px] text-[var(--danger)]">⚠️ {sceneError}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Auto Reframe */}
+              {isVideo && (
+                <div className="space-y-1.5 pb-3 border-b border-[var(--border)]/60">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-white">Auto Reframe</span>
+                    <span className="text-[9px] text-[var(--text-secondary)]">Keyframed Pan</span>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                    Crop and pan clip dynamically to fit portrait or square ratios.
+                  </p>
+                  
+                  <div className="flex gap-2 items-center">
+                    <select
+                      value={targetRatio}
+                      onChange={(e) => setTargetRatio(e.target.value as any)}
+                      disabled={reframeStatus === "processing" || reframeStatus === "queued"}
+                      className="text-[10px] bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white focus:outline-none flex-1"
+                    >
+                      <option value="9:16">Portrait 9:16</option>
+                      <option value="1:1">Square 1:1</option>
+                      <option value="4:5">Portrait 4:5</option>
+                    </select>
+
+                    {reframeStatus === "processing" || reframeStatus === "queued" ? (
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--accent)] min-w-[100px]">
+                        <div className="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+                        <span>Reframing... {reframeProgress}%</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleRunAutoReframe}
+                        className="py-1 px-3 text-[10px] font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded text-white transition-colors"
+                      >
+                        Reframe
+                      </button>
+                    )}
+                  </div>
+                  {reframeError && (
+                    <div className="text-[9px] text-[var(--danger)]">⚠️ {reframeError}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Speech Enhancement / Denoising */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-white">AI Speech Enhancer</span>
+                  <span className="text-[9px] text-[var(--text-secondary)]">DeepFilterNet3</span>
+                </div>
+                <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                  Suppress background noise and isolate spoken voices non-destructively.
+                </p>
+
+                {selectedClip.denoisedSourceId ? (
+                  <div className="space-y-2 bg-[var(--bg-panel)] p-2 rounded border border-[var(--border)] text-[10px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--text-secondary)]">Noise Reduction:</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedClip.isDenoised || false}
+                          onChange={(e) => setClipDenoised(selectedClip!.id, e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-7 h-4 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[var(--accent)]"></div>
+                      </label>
+                    </div>
+
+                    <div className="text-[9px] text-[var(--text-muted)] bg-[var(--bg-surface)] p-1 rounded font-mono truncate">
+                      File: {assets[selectedClip.sourceId]?.fileName || "AI Enhanced Audio"}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1 border-t border-[var(--border)]/40 text-[9px] text-[var(--text-muted)]">
+                      <span>Before / After Switcher:</span>
+                      <span className="font-semibold text-white uppercase font-mono">
+                        {selectedClip.isDenoised ? "Enhanced" : "Original"}
+                      </span>
+                    </div>
+                  </div>
+                ) : denoiseStatus === "processing" || denoiseStatus === "queued" ? (
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--accent)]">
+                    <div className="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+                    <span>Denoising... {denoiseProgress}%</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRunNoiseReduction}
+                    className="w-full py-1 text-[10px] font-semibold bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white transition-colors"
+                  >
+                    Enhance Speech
+                  </button>
+                )}
+                {denoiseError && (
+                  <div className="text-[9px] text-[var(--danger)]">⚠️ {denoiseError}</div>
+                )}
+              </div>
+
             </div>
           </div>
         )}

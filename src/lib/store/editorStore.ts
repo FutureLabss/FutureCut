@@ -22,7 +22,7 @@ import type {
   Filter,
   Keyframe,
 } from "../model/types";
-import { deriveProjectDuration } from "../model/types";
+import { deriveProjectDuration, clipEndTime } from "../model/types";
 import {
   addClipToTrack,
   addClipToTracks,
@@ -45,6 +45,8 @@ import {
   setClipSpeed,
   setClipKeyframe,
   removeClipKeyframe,
+  applyAutoReframe,
+  setClipDenoised,
 } from "../model/operations";
 import { generateId } from "../utils/id";
 import { speedAdjustedClipDuration } from "../utils/speed";
@@ -126,6 +128,17 @@ export interface EditorActions {
     property: "position.x" | "position.y" | "scale" | "rotation" | "opacity",
     time: number
   ) => void;
+
+  // Phase 5 AI Actions
+  applyCaptions: (words: { text: string; startTime: number; endTime: number; speakerId?: string }[]) => void;
+  applyAutoReframe: (
+    clipId: string,
+    targetAspectRatio: "9:16" | "1:1" | "4:5" | "16:9",
+    cropKeyframes: { time: number; x: number; y: number; scale: number }[]
+  ) => void;
+  splitClipAtTimes: (clipId: string, times: number[]) => void;
+  applyDenoisedAudio: (clipId: string, processedAudioAssetId: string, fileName: string) => void;
+  setClipDenoised: (clipId: string, isDenoised: boolean) => void;
 
   /** Reset the project to initial state */
   resetProject: () => void;
@@ -544,6 +557,190 @@ export const useEditorStore = create<EditorState & EditorActions>()(
             clipId,
             property,
             time
+          );
+          return {
+            project: {
+              ...state.project,
+              tracks: newTracks,
+            },
+          };
+        });
+      },
+
+      // Phase 5 AI Actions
+      applyCaptions: (words) => {
+        set((state) => {
+          let currentTracks = [...state.project.tracks];
+          let textTrack = currentTracks.find((t) => t.type === "text");
+          if (!textTrack) {
+            currentTracks = addTrack(currentTracks, "text");
+            textTrack = currentTracks[currentTracks.length - 1];
+          }
+
+          const textTrackId = textTrack.id;
+          currentTracks = currentTracks.map((t) => {
+            if (t.id === textTrackId) {
+              return { ...t, clips: [] };
+            }
+            return t;
+          });
+
+          const segments: { text: string; startTime: number; endTime: number }[] = [];
+          let currentSegment: { text: string[]; startTime: number; endTime: number } | null = null;
+
+          for (const w of words) {
+            if (!currentSegment) {
+              currentSegment = {
+                text: [w.text],
+                startTime: w.startTime,
+                endTime: w.endTime,
+              };
+            } else {
+              const gap = w.startTime - currentSegment.endTime;
+              if (
+                currentSegment.text.length >= 5 ||
+                gap > 1.5 ||
+                (w.endTime - currentSegment.startTime) > 3.0
+              ) {
+                segments.push({
+                  text: currentSegment.text.join(" "),
+                  startTime: currentSegment.startTime,
+                  endTime: currentSegment.endTime,
+                });
+                currentSegment = {
+                  text: [w.text],
+                  startTime: w.startTime,
+                  endTime: w.endTime,
+                };
+              } else {
+                currentSegment.text.push(w.text);
+                currentSegment.endTime = w.endTime;
+              }
+            }
+          }
+          if (currentSegment) {
+            segments.push({
+              text: currentSegment.text.join(" "),
+              startTime: currentSegment.startTime,
+              endTime: currentSegment.endTime,
+            });
+          }
+
+          for (const seg of segments) {
+            currentTracks = addClipToTrack(
+              currentTracks,
+              textTrackId,
+              "text",
+              0,
+              seg.endTime - seg.startTime,
+              seg.startTime,
+              {
+                text: seg.text,
+                fontFamily: "Outfit",
+                fontSize: 24,
+                color: "#FFFFFF",
+                position: { x: 0.5, y: 0.8 },
+                animation: "none",
+              }
+            );
+          }
+
+          return {
+            project: {
+              ...state.project,
+              tracks: currentTracks,
+              duration: deriveProjectDuration(currentTracks),
+            },
+          };
+        });
+      },
+
+      applyAutoReframe: (clipId, targetAspectRatio, cropKeyframes) => {
+        set((state) => {
+          const newTracks = applyAutoReframe(
+            state.project.tracks,
+            clipId,
+            targetAspectRatio,
+            cropKeyframes
+          );
+          return {
+            project: {
+              ...state.project,
+              tracks: newTracks,
+            },
+          };
+        });
+      },
+
+      splitClipAtTimes: (clipId, times) => {
+        set((state) => {
+          let currentTracks = state.project.tracks;
+          const sortedTimes = [...times].sort((a, b) => a - b);
+          
+          const track = currentTracks.find(t => t.clips.some(c => c.id === clipId));
+          if (!track) return state;
+          const trackId = track.id;
+
+          for (const splitTime of sortedTimes) {
+            const activeClip = currentTracks
+              .find(t => t.id === trackId)
+              ?.clips.find(c => splitTime > c.startTime && splitTime < clipEndTime(c));
+            
+            if (activeClip) {
+              currentTracks = splitClip(currentTracks, activeClip.id, splitTime);
+            }
+          }
+
+          const newDuration = deriveProjectDuration(currentTracks);
+          return {
+            project: {
+              ...state.project,
+              tracks: currentTracks,
+              duration: newDuration,
+            }
+          };
+        });
+      },
+
+      applyDenoisedAudio: (clipId, processedAudioAssetId, fileName) => {
+        set((state) => {
+          const clip = state.project.tracks
+            .flatMap((t) => t.clips)
+            .find((c) => c.id === clipId);
+          if (!clip) return state;
+
+          const originalAsset = state.assets[clip.sourceId];
+          if (!originalAsset) return state;
+
+          const denoisedAsset: Asset = {
+            ...originalAsset,
+            id: processedAudioAssetId,
+            fileName,
+          };
+
+          const newTracks = setClipDenoised(
+            state.project.tracks,
+            clipId,
+            true,
+            processedAudioAssetId
+          );
+
+          return {
+            assets: { ...state.assets, [processedAudioAssetId]: denoisedAsset },
+            project: {
+              ...state.project,
+              tracks: newTracks,
+            },
+          };
+        });
+      },
+
+      setClipDenoised: (clipId, isDenoised) => {
+        set((state) => {
+          const newTracks = setClipDenoised(
+            state.project.tracks,
+            clipId,
+            isDenoised
           );
           return {
             project: {

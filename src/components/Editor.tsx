@@ -20,6 +20,7 @@ import { Timeline } from "./timeline/Timeline";
 import { UploadZone } from "./upload/UploadZone";
 import { ExportDialog } from "./export/ExportDialog";
 import { ClipPropertiesPanel } from "./properties/ClipPropertiesPanel";
+import { CaptionPanel } from "./properties/CaptionPanel";
 import { useAutosave } from "@/hooks/useAutosave";
 import {
   detectFeatures,
@@ -28,7 +29,8 @@ import {
 
 export function Editor() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"timeline" | "properties">("timeline");
+  const [activeTab, setActiveTab] = useState<"timeline" | "properties" | "captions">("timeline");
+  const [sidebarTab, setSidebarTab] = useState<"properties" | "captions">("properties");
   const project = useEditorStore((s) => s.project);
   const assets = useEditorStore((s) => s.assets);
   const saveStatus = useEditorStore((s) => s.saveStatus);
@@ -255,9 +257,33 @@ export function Editor() {
                 <TransportControls />
               </div>
 
-              {/* Desktop Properties Sidebar (hidden on mobile/tablet) */}
-              <div className="hidden lg:flex shrink-0">
-                <ClipPropertiesPanel />
+              {/* Desktop Properties & Captions Sidebar (hidden on mobile/tablet) */}
+              <div className="hidden lg:flex flex-col shrink-0 border-l border-[var(--border)] bg-[var(--bg-panel)] w-[300px] h-full min-h-0">
+                <div className="flex border-b border-[var(--border)] bg-[var(--bg-surface)]/20 shrink-0">
+                  <button
+                    onClick={() => setSidebarTab("properties")}
+                    className={`flex-1 py-2.5 text-xs font-semibold border-b border-b-2 transition-all ${
+                      sidebarTab === "properties"
+                        ? "border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-hover)]/30"
+                        : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    Inspector
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab("captions")}
+                    className={`flex-1 py-2.5 text-xs font-semibold border-b border-b-2 transition-all ${
+                      sidebarTab === "captions"
+                        ? "border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-hover)]/30"
+                        : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    Captions
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {sidebarTab === "properties" ? <ClipPropertiesPanel /> : <CaptionPanel />}
+                </div>
               </div>
             </div>
 
@@ -286,11 +312,26 @@ export function Editor() {
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab("captions")}
+                className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-all ${
+                  activeTab === "captions"
+                    ? "border-[var(--accent)] text-[var(--text-primary)] bg-[var(--bg-hover)]"
+                    : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Captions
+              </button>
             </div>
-
+ 
             {/* Mobile/Tablet Properties Panel (visible when properties tab is active) */}
             <div className={`${activeTab === "properties" ? "flex" : "hidden"} lg:hidden h-[280px] sm:h-[320px] border-t border-[var(--border)] overflow-hidden shrink-0`}>
               <ClipPropertiesPanel />
+            </div>
+
+            {/* Mobile/Tablet Captions Panel (visible when captions tab is active) */}
+            <div className={`${activeTab === "captions" ? "flex" : "hidden"} lg:hidden h-[280px] sm:h-[320px] border-t border-[var(--border)] overflow-hidden shrink-0`}>
+              <CaptionPanel />
             </div>
 
             {/* Timeline (always visible on desktop, tabbed on mobile) */}

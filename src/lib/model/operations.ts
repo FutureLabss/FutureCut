@@ -598,3 +598,86 @@ export function removeClipKeyframe(
     return { ...track, clips: newClips };
   });
 }
+
+/** Apply auto-reframe crop keyframes to clip */
+export function applyAutoReframe(
+  tracks: Track[],
+  clipId: string,
+  targetAspectRatio: "9:16" | "1:1" | "4:5" | "16:9",
+  cropKeyframes: { time: number; x: number; y: number; scale: number }[]
+): Track[] {
+  return tracks.map((track) => {
+    const idx = track.clips.findIndex((c) => c.id === clipId);
+    if (idx === -1) return track;
+
+    const newClips = track.clips.map((c) => {
+      if (c.id === clipId) {
+        const xKeyframes = cropKeyframes.map((k) => ({
+          time: k.time,
+          value: k.x,
+          easing: "linear" as const,
+        }));
+        const yKeyframes = cropKeyframes.map((k) => ({
+          time: k.time,
+          value: k.y,
+          easing: "linear" as const,
+        }));
+        const scaleKeyframes = cropKeyframes.map((k) => ({
+          time: k.time,
+          value: k.scale,
+          easing: "linear" as const,
+        }));
+
+        let keyframedProps = c.keyframedProps ? [...c.keyframedProps] : [];
+        
+        keyframedProps = keyframedProps.filter(
+          (t) => t.property !== "position.x" && t.property !== "position.y" && t.property !== "scale"
+        );
+
+        keyframedProps.push({ property: "position.x", keyframes: xKeyframes });
+        keyframedProps.push({ property: "position.y", keyframes: yKeyframes });
+        keyframedProps.push({ property: "scale", keyframes: scaleKeyframes });
+
+        return {
+          ...c,
+          keyframedProps,
+        };
+      }
+      return c;
+    });
+
+    return { ...track, clips: newClips };
+  });
+}
+
+/** Toggle noise reduction status on a clip */
+export function setClipDenoised(
+  tracks: Track[],
+  clipId: string,
+  isDenoised: boolean,
+  denoisedSourceId?: string
+): Track[] {
+  return tracks.map((track) => {
+    const idx = track.clips.findIndex((c) => c.id === clipId);
+    if (idx === -1) return track;
+
+    const newClips = track.clips.map((c) => {
+      if (c.id === clipId) {
+        const originalSourceId = c.originalSourceId ?? c.sourceId;
+        const resolvedDenoisedId = denoisedSourceId ?? c.denoisedSourceId;
+        
+        return {
+          ...c,
+          originalSourceId,
+          denoisedSourceId: resolvedDenoisedId,
+          isDenoised,
+          sourceId: isDenoised && resolvedDenoisedId ? resolvedDenoisedId : originalSourceId,
+        };
+      }
+      return c;
+    });
+
+    return { ...track, clips: newClips };
+  });
+}
+

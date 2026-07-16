@@ -95,6 +95,11 @@ export interface Clip {
   filters?: Filter[];
   speed?: SpeedCurve;
   keyframedProps?: KeyframeTrack[];
+
+  // Phase 5 AI Tools Extensions
+  originalSourceId?: string;
+  denoisedSourceId?: string;
+  isDenoised?: boolean;
 }
 
 /**

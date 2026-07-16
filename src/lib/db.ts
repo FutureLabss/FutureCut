@@ -61,9 +61,25 @@ function getSqliteDb(): Database.Database {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS ai_jobs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      clip_id TEXT,
+      job_type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'queued',
+      progress INTEGER NOT NULL DEFAULT 0,
+      input_data TEXT,
+      output_data TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_project ON render_jobs(project_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_status ON render_jobs(status);
+    CREATE INDEX IF NOT EXISTS idx_ai_jobs_project ON ai_jobs(project_id);
+    CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs(status);
   `);
 
   return sqliteDb;
@@ -115,9 +131,24 @@ async function initializePg() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS ai_jobs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      clip_id TEXT,
+      job_type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'queued',
+      progress INTEGER NOT NULL DEFAULT 0,
+      input_data TEXT,
+      output_data TEXT,
+      error_message TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_project ON render_jobs(project_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_status ON render_jobs(status);
+    CREATE INDEX IF NOT EXISTS idx_ai_jobs_project ON ai_jobs(project_id);
+    CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs(status);
   `);
   pgInitialized = true;
 }
