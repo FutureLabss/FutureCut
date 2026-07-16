@@ -20,6 +20,9 @@ export type RenderCallback = (
   height: number
 ) => void;
 
+export type BufferingCallback = (isBuffering: boolean) => void;
+export type DecodeProgressCallback = (decoded: number, total: number) => void;
+
 interface ActiveSource {
   assetId: string;
   demuxer: Demuxer;
@@ -28,6 +31,10 @@ interface ActiveSource {
   config: DemuxerConfig;
   /** Buffered samples waiting for decoder capacity (backpressure queue) */
   pendingSamples: DemuxedSample[];
+  /** Total number of samples expected from demuxer */
+  totalSamples: number;
+  /** Number of frames successfully decoded so far */
+  decodedFrames: number;
 }
 
 /**
@@ -36,6 +43,8 @@ interface ActiveSource {
 export class PreviewEngine {
   private sources: Map<string, ActiveSource> = new Map();
   private renderCallback: RenderCallback | null = null;
+  private bufferingCallback: BufferingCallback | null = null;
+  private progressCallback: DecodeProgressCallback | null = null;
   private animFrameId: number | null = null;
   private isPlaying = false;
   private currentTime = 0; // seconds
@@ -44,6 +53,15 @@ export class PreviewEngine {
 
   // Guards against overlapping async renders within the tick loop
   private renderPending = false;
+
+  // Buffering state: true when the playhead is ahead of decoded frames
+  private _isBuffering = false;
+  // Number of consecutive ticks spent buffering before we force-render
+  private bufferingTicks = 0;
+  private readonly MAX_BUFFERING_TICKS = 90; // ~3 seconds at 30fps — fallback
+
+  // Resolvers waiting for full decode to complete
+  private decodeResolvers: (() => void)[] = [];
 
   // Offscreen canvas for rendering the composite frame
   private offscreenCanvas: OffscreenCanvas | null = null;
@@ -61,6 +79,33 @@ export class PreviewEngine {
    */
   onRender(callback: RenderCallback): void {
     this.renderCallback = callback;
+  }
+
+  /**
+   * Set the callback that fires when buffering state changes.
+   */
+  onBuffering(callback: BufferingCallback): void {
+    this.bufferingCallback = callback;
+  }
+
+  /**
+   * Set the callback that fires as frames are decoded.
+   * Reports (decodedFrames, totalSamples) across all sources.
+   */
+  onDecodeProgress(callback: DecodeProgressCallback): void {
+    this.progressCallback = callback;
+  }
+
+  /**
+   * Returns a promise that resolves when ALL loaded sources have
+   * finished decoding every sample. Use this to gate the editor UI
+   * so the user never hits buffering on first play.
+   */
+  async awaitFullDecode(): Promise<void> {
+    if (this.isFullyDecoded()) return;
+    return new Promise<void>((resolve) => {
+      this.decodeResolvers.push(resolve);
+    });
   }
 
   /**
@@ -102,7 +147,7 @@ export class PreviewEngine {
     }
 
     const demuxer = new Demuxer();
-    const frameCache = new FrameCache(30);
+    const frameCache = new FrameCache(300);
 
     return new Promise<DemuxerConfig | null>((resolve) => {
       let decoder: Decoder;
@@ -123,6 +168,14 @@ export class PreviewEngine {
               await frameCache.put(frame.timestamp, frame);
             } finally {
               frame.close();
+            }
+
+            // Track decode progress
+            const source = this.sources.get(asset.id);
+            if (source) {
+              source.decodedFrames++;
+              this.fireDecodeProgress();
+              this.checkDecodeComplete();
             }
           },
           onError: (error) => {
@@ -151,6 +204,8 @@ export class PreviewEngine {
             frameCache,
             config: cfg,
             pendingSamples: [],
+            totalSamples: cfg.numberOfSamples,
+            decodedFrames: 0,
           });
 
           resolve(cfg);
@@ -164,7 +219,7 @@ export class PreviewEngine {
         if (!decoder?.isConfigured) return;
 
         // Queue all samples instead of feeding them directly.
-        // The decoder has a backpressure limit (MAX_PENDING = 3), so
+        // The decoder has a backpressure limit (MAX_PENDING = 10), so
         // feeding 100+ samples in a loop silently drops most of them.
         const source = this.sources.get(asset.id);
         if (source) {
@@ -207,6 +262,12 @@ export class PreviewEngine {
     }
 
     if (!this.offscreenCtx) return;
+
+    // Update playhead position in all frame caches for smart eviction
+    const playheadUs = timeSeconds * 1_000_000;
+    for (const source of this.sources.values()) {
+      source.frameCache.setPlayhead(playheadUs);
+    }
 
     // Composite all active video and text layers
     await renderFrame({
@@ -310,6 +371,8 @@ export class PreviewEngine {
     if (this.isPlaying) return;
     this.isPlaying = true;
     this.renderPending = false;
+    this._isBuffering = false;
+    this.bufferingTicks = 0;
     this.lastFrameTime = performance.now();
     
     // Play active audio elements
@@ -330,6 +393,9 @@ export class PreviewEngine {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
+
+    // Clear buffering state on pause
+    this.setBufferingState(false);
 
     // Pause audio elements
     for (const audioEl of this.audioElements.values()) {
@@ -372,6 +438,52 @@ export class PreviewEngine {
   // ============================================================
 
   /**
+   * Update the external buffering state, only firing the callback
+   * when the value actually changes.
+   */
+  private setBufferingState(buffering: boolean): void {
+    if (this._isBuffering !== buffering) {
+      this._isBuffering = buffering;
+      this.bufferingCallback?.(buffering);
+    }
+  }
+
+  /**
+   * Check whether all active video clips at `timeSeconds` have a
+   * frame available in their cache within a reasonable tolerance.
+   */
+  private hasFramesForTime(timeSeconds: number): boolean {
+    if (!this.project) return true;
+
+    const frameDurationUs = (1 / this.fps) * 1_000_000;
+    // Allow up to 1.5 frame durations of tolerance
+    const toleranceUs = frameDurationUs * 1.5;
+
+    for (const track of this.project.tracks) {
+      if (track.type !== "video") continue;
+
+      for (const clip of track.clips) {
+        if (timeSeconds < clip.startTime || timeSeconds > clipEndTime(clip)) {
+          continue;
+        }
+
+        // This clip is active — check if its source has a nearby frame
+        const source = this.sources.get(clip.sourceId);
+        if (!source) continue;
+
+        const sourceTime = sourceTimeForTimelineTime(clip, timeSeconds - clip.startTime);
+        const sourceTimeUs = sourceTime * 1_000_000;
+
+        if (!source.frameCache.hasNear(sourceTimeUs, toleranceUs)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Feed queued samples to the decoder until backpressure kicks in.
    * Called after each frame is decoded (freeing a pending slot) and
    * when new samples arrive from the demuxer.
@@ -403,15 +515,49 @@ export class PreviewEngine {
 
     const now = performance.now();
     const elapsed = (now - this.lastFrameTime) / 1000; // seconds
+    const frameDuration = 1 / this.fps;
 
-    if (elapsed < 1 / this.fps) return;
+    if (elapsed < frameDuration) return;
 
     // Skip this tick if a previous async seekTo is still rendering.
     // Without this guard, overlapping seekTo() calls pile up and the
     // compositor/frameCache races cause the canvas to freeze on a stale frame.
     if (this.renderPending) return;
 
-    this.currentTime += elapsed;
+    // ── Buffering detection ──────────────────────────────────
+    // Before advancing the clock, check whether the frame cache
+    // has frames available near the *next* playhead position.
+    const nextTime = this.currentTime + elapsed;
+
+    if (!this.hasFramesForTime(nextTime)) {
+      this.bufferingTicks++;
+      this.setBufferingState(true);
+
+      // Pause audio during buffering so it doesn't desync
+      for (const audioEl of this.audioElements.values()) {
+        if (!audioEl.paused) audioEl.pause();
+      }
+
+      // Safety valve: if we've been buffering too long, force-render
+      // with the nearest available frame so the UI isn't stuck forever.
+      if (this.bufferingTicks < this.MAX_BUFFERING_TICKS) {
+        // Don't advance currentTime — hold position and retry next tick
+        this.lastFrameTime = now;
+        return;
+      }
+      // Fallthrough: force-render with whatever we have
+    }
+
+    // ── Normal playback ──────────────────────────────────────
+    this.bufferingTicks = 0;
+    this.setBufferingState(false);
+
+    // Frame skipping: if we're more than 2 frames behind (e.g. slow
+    // system), skip ahead to avoid a cascade of catch-up renders.
+    const maxSkip = frameDuration * 2;
+    const advanceBy = elapsed > maxSkip ? maxSkip : elapsed;
+
+    this.currentTime += advanceBy;
     this.lastFrameTime = now;
 
     // Check if we've reached the end of the timeline
@@ -419,6 +565,13 @@ export class PreviewEngine {
       if (this.currentTime >= this.project.duration) {
         this.pause();
         return;
+      }
+    }
+
+    // Resume audio if it was paused during buffering
+    for (const audioEl of this.audioElements.values()) {
+      if (audioEl.paused && this.isPlaying) {
+        audioEl.play().catch(() => {});
       }
     }
 
@@ -430,6 +583,43 @@ export class PreviewEngine {
         this.renderPending = false;
       });
   };
+
+  /**
+   * Fire the decode progress callback with aggregate counts.
+   */
+  private fireDecodeProgress(): void {
+    if (!this.progressCallback) return;
+    let decoded = 0;
+    let total = 0;
+    for (const source of this.sources.values()) {
+      decoded += source.decodedFrames;
+      total += source.totalSamples;
+    }
+    this.progressCallback(decoded, total);
+  }
+
+  /**
+   * Check whether all sources are fully decoded and resolve
+   * any pending awaitFullDecode() promises.
+   */
+  private checkDecodeComplete(): void {
+    if (!this.isFullyDecoded()) return;
+    for (const resolve of this.decodeResolvers) {
+      resolve();
+    }
+    this.decodeResolvers = [];
+  }
+
+  /**
+   * Returns true when every loaded source has decoded all its samples.
+   */
+  private isFullyDecoded(): boolean {
+    if (this.sources.size === 0) return false;
+    for (const source of this.sources.values()) {
+      if (source.decodedFrames < source.totalSamples) return false;
+    }
+    return true;
+  }
 }
 
 // Singleton instance

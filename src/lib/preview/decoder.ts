@@ -42,7 +42,7 @@ export class Decoder {
   private onFrame: FrameCallback;
   private onError: ((error: Error) => void) | null;
   private pendingFrames = 0;
-  private readonly MAX_PENDING = 3;
+  private readonly MAX_PENDING = 10;
   private _isConfigured = false;
 
   constructor(options: DecoderOptions) {

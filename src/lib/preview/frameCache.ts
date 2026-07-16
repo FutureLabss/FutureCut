@@ -1,8 +1,10 @@
 // ============================================================
-// FutureCut — Frame Cache (LRU)
+// FutureCut — Frame Cache (Playhead-Aware Eviction)
 // ============================================================
 // Caches decoded frames as ImageBitmaps for smooth scrubbing.
-// Uses a simple LRU eviction strategy. ImageBitmaps are safe
+// Uses a playhead-aware eviction strategy: frames furthest from
+// the current playhead are evicted first, keeping the buffer
+// focused around the viewing window. ImageBitmaps are safe
 // for GC (unlike VideoFrames which hold GPU memory).
 // ============================================================
 
@@ -12,14 +14,24 @@ export interface CachedFrame {
 }
 
 /**
- * LRU cache for decoded video frames stored as ImageBitmaps.
+ * Playhead-aware cache for decoded video frames stored as ImageBitmaps.
+ * Evicts frames furthest from the current playhead rather than simple LRU.
  */
 export class FrameCache {
   private cache: Map<number, ImageBitmap> = new Map();
   private readonly maxSize: number;
+  private playheadUs: number = 0;
 
-  constructor(maxSize: number = 10) {
+  constructor(maxSize: number = 300) {
     this.maxSize = maxSize;
+  }
+
+  /**
+   * Update the playhead position so eviction can prioritise
+   * frames near the current viewing position.
+   */
+  setPlayhead(timestampUs: number): void {
+    this.playheadUs = timestampUs;
   }
 
   /**
@@ -38,14 +50,9 @@ export class FrameCache {
     // Convert VideoFrame → ImageBitmap before closing the frame
     const bitmap = await createImageBitmap(frame);
 
-    // Evict oldest if at capacity
+    // Evict frame furthest from the current playhead if at capacity
     if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        const oldBitmap = this.cache.get(oldestKey);
-        oldBitmap?.close();
-        this.cache.delete(oldestKey);
-      }
+      this.evictFurthest();
     }
 
     this.cache.set(key, bitmap);
@@ -59,11 +66,6 @@ export class FrameCache {
     const key = Math.round(timestampUs);
     const bitmap = this.cache.get(key);
     if (!bitmap) return null;
-
-    // Move to end (most recently used) — LRU refresh
-    this.cache.delete(key);
-    this.cache.set(key, bitmap);
-
     return bitmap;
   }
 
@@ -89,6 +91,22 @@ export class FrameCache {
   }
 
   /**
+   * Check whether the cache has a frame within `toleranceUs` of the
+   * requested timestamp.  Used by the engine to detect buffering.
+   */
+  hasNear(timestampUs: number, toleranceUs: number): boolean {
+    const key = Math.round(timestampUs);
+    if (this.cache.has(key)) return true;
+
+    for (const cachedKey of this.cache.keys()) {
+      if (Math.abs(cachedKey - key) <= toleranceUs) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Check if a frame is cached for the given timestamp.
    */
   has(timestampUs: number): boolean {
@@ -107,5 +125,33 @@ export class FrameCache {
 
   get size(): number {
     return this.cache.size;
+  }
+
+  // ============================================================
+  // Private
+  // ============================================================
+
+  /**
+   * Evict the frame that is furthest from the current playhead.
+   * This ensures frames ahead of and close behind the playhead
+   * survive while already-played distant frames are recycled.
+   */
+  private evictFurthest(): void {
+    let furthestKey: number | undefined;
+    let furthestDist = -1;
+
+    for (const key of this.cache.keys()) {
+      const dist = Math.abs(key - this.playheadUs);
+      if (dist > furthestDist) {
+        furthestDist = dist;
+        furthestKey = key;
+      }
+    }
+
+    if (furthestKey !== undefined) {
+      const oldBitmap = this.cache.get(furthestKey);
+      oldBitmap?.close();
+      this.cache.delete(furthestKey);
+    }
   }
 }

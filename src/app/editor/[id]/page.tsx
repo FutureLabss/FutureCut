@@ -4,6 +4,8 @@
 // FutureCut — Editor Page (Project Loader)
 // ============================================================
 // Loads project data from the server and hydrates the editor store.
+// Waits for the full decode pipeline to finish before showing
+// the editor so the user never hits buffering on first play.
 // ============================================================
 
 import { useEffect, useState } from "react";
@@ -19,6 +21,7 @@ export default function EditorPage() {
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
   const [loadStatus, setLoadStatus] = useState("Loading project...");
+  const [decodeProgress, setDecodeProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const projectId = params.id as string;
@@ -110,13 +113,29 @@ export default function EditorPage() {
           }
         }
 
-        setLoadStatus("Initializing preview engine...");
+        setLoadStatus("Preparing video for editing...");
 
         // Load into preview engine
         const engine = getPreviewEngine();
+
+        // Set up progress tracking before loading assets
+        engine.onDecodeProgress((decoded, total) => {
+          if (total > 0) {
+            setDecodeProgress(Math.round((decoded / total) * 100));
+          }
+        });
+
         for (const asset of Object.values(hydratedAssets)) {
           await engine.loadAsset(asset as any);
         }
+
+        // Wait for the full decode pipeline to finish so the user
+        // never hits buffering on first play
+        const hasVideoAssets = Object.keys(hydratedAssets).length > 0;
+        if (hasVideoAssets) {
+          await engine.awaitFullDecode();
+        }
+
         engine.updateProject(project, hydratedAssets);
         engine.seekTo(0);
 
@@ -142,9 +161,24 @@ export default function EditorPage() {
       <div className="h-screen flex items-center justify-center bg-[var(--bg-app)]">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-[var(--text-muted)]">
+          <p className="text-sm text-[var(--text-muted)] mb-3">
             {loadStatus}
           </p>
+
+          {/* Decode progress bar */}
+          {decodeProgress > 0 && decodeProgress < 100 && (
+            <div className="w-56 mx-auto">
+              <div className="w-full h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[var(--accent)] rounded-full transition-all duration-200 ease-out"
+                  style={{ width: `${decodeProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-1.5">
+                {decodeProgress}%
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
