@@ -98,6 +98,15 @@ export class Demuxer {
   }
 
   /**
+   * Stop extracting samples.
+   */
+  stop(): void {
+    if (this.mp4File) {
+      this.mp4File.stop();
+    }
+  }
+
+  /**
    * Seek to a specific time in the file.
    * Returns the actual seek time (snapped to nearest sync point).
    */

@@ -20,6 +20,7 @@ import { formatTimecode } from "@/lib/utils/time";
 export function CaptionPanel() {
   const project = useEditorStore((s) => s.project);
   const assets = useEditorStore((s) => s.assets);
+  const serverProjectId = useEditorStore((s) => s.serverProjectId);
   const playheadTime = useUIStore((s) => s.playheadTime);
   const setPlayhead = useUIStore((s) => s.setPlayhead);
   const applyCaptions = useEditorStore((s) => s.applyCaptions);
@@ -77,6 +78,11 @@ export function CaptionPanel() {
   }, [jobId, applyCaptions]);
 
   const handleGenerateCaptions = async () => {
+    if (!serverProjectId) {
+      setError("Project must be saved before running AI jobs. Save your project first.");
+      return;
+    }
+
     // Pick the first video asset in the project
     const videoAsset = Object.values(assets).find(
       (a) => a.fileName.endsWith(".mp4") || a.fileName.endsWith(".webm") || a.duration > 0
@@ -97,6 +103,9 @@ export function CaptionPanel() {
       }
     }
 
+    // Strip non-serializable fields (File, objectUrl) before sending
+    const { file, objectUrl, ...serializableAsset } = videoAsset;
+
     setError(null);
     setStatus("queued");
     setProgress(0);
@@ -106,10 +115,10 @@ export function CaptionPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: project.id,
+          projectId: serverProjectId,
           clipId: targetClipId,
           jobType: "transcribe",
-          inputData: { asset: videoAsset },
+          inputData: { asset: serializableAsset },
         }),
       });
 

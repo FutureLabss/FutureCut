@@ -35,6 +35,7 @@ interface ActiveSource {
   totalSamples: number;
   /** Number of frames successfully decoded so far */
   decodedFrames: number;
+  lastSoughtKeyframeTime?: number;
 }
 
 /**
@@ -170,6 +171,14 @@ export class PreviewEngine {
               frame.close();
             }
 
+            // Trigger a re-render if we are not playing, so that seeks/scrubbing updates the canvas
+            // as soon as the target frame is decoded!
+            if (!this.isPlaying) {
+              this.seekTo(this.currentTime).catch((err) => {
+                console.error("Error seeking in onFrame callback:", err);
+              });
+            }
+
             // Track decode progress
             const source = this.sources.get(asset.id);
             if (source) {
@@ -197,7 +206,7 @@ export class PreviewEngine {
         try {
           await decoder.configure(decoderConfig);
 
-          this.sources.set(asset.id, {
+           this.sources.set(asset.id, {
             assetId: asset.id,
             demuxer,
             decoder,
@@ -206,9 +215,12 @@ export class PreviewEngine {
             pendingSamples: [],
             totalSamples: cfg.numberOfSamples,
             decodedFrames: 0,
+            lastSoughtKeyframeTime: 0,
           });
 
           resolve(cfg);
+          this.checkDecodeComplete();
+        }
         } catch (err) {
           console.error(`Failed to configure decoder for asset ${asset.id}:`, err);
           resolve(null);
@@ -218,13 +230,21 @@ export class PreviewEngine {
       const onSamples = (samples: DemuxedSample[]) => {
         if (!decoder?.isConfigured) return;
 
-        // Queue all samples instead of feeding them directly.
-        // The decoder has a backpressure limit (MAX_PENDING = 10), so
-        // feeding 100+ samples in a loop silently drops most of them.
         const source = this.sources.get(asset.id);
         if (source) {
           source.pendingSamples.push(...samples);
           this.drainSampleQueue(asset.id);
+
+          // Stop demuxer if we have demuxed far enough ahead of the current playhead
+          if (samples.length > 0) {
+            const lastSample = samples[samples.length - 1];
+            const playheadUs = this.currentTime * 1_000_000;
+            const targetEndUs = playheadUs + 2_000_000; // 2 seconds ahead of playhead
+
+            if (lastSample.timestamp > targetEndUs) {
+              demuxer.stop();
+            }
+          }
         }
       };
 
@@ -267,6 +287,7 @@ export class PreviewEngine {
     const playheadUs = timeSeconds * 1_000_000;
     for (const source of this.sources.values()) {
       source.frameCache.setPlayhead(playheadUs);
+      await this.ensureBufferForSource(source, timeSeconds);
     }
 
     // Composite all active video and text layers
@@ -449,6 +470,69 @@ export class PreviewEngine {
   }
 
   /**
+   * Ensures that the frame cache has samples decoded around the playhead.
+   * If not, seeks the demuxer to the playhead (snapping to keyframe) and demuxes a short window.
+   */
+  private async ensureBufferForSource(source: ActiveSource, timeSeconds: number): Promise<void> {
+    const playheadUs = timeSeconds * 1_000_000;
+    const frameDurationUs = (1 / this.fps) * 1_000_000;
+    const toleranceUs = frameDurationUs * 1.5;
+
+    // Check if the frame at the playhead is already cached
+    const hasCurrentFrame = source.frameCache.hasNear(playheadUs, toleranceUs);
+    
+    // We also want some buffer ahead of the playhead (e.g. 1 second ahead)
+    const hasFutureFrame = source.frameCache.hasNear(playheadUs + 1_000_000, toleranceUs);
+
+    if (hasCurrentFrame && hasFutureFrame) {
+      return;
+    }
+
+    // Determine the keyframe time for the target time by seeking the demuxer
+    const keyframeTime = source.demuxer.seek(timeSeconds);
+
+    if (source.lastSoughtKeyframeTime === keyframeTime) {
+      // Same GOP. Just make sure the demuxer is running to finish decoding
+      source.demuxer.startExtracting();
+      return;
+    }
+
+    // New GOP or first seek. Stop current extraction and reset the decoder.
+    source.demuxer.stop();
+    await source.decoder.reset();
+    source.pendingSamples = [];
+
+    // Seek the demuxer and set the last sought keyframe time
+    source.demuxer.seek(timeSeconds);
+    source.lastSoughtKeyframeTime = keyframeTime;
+
+    // Start extracting from the keyframe
+    source.demuxer.startExtracting();
+  }
+
+  /**
+   * Maintains the decoding buffer during playback.
+   * Resumes extraction if buffer ahead is running low.
+   */
+  private maintainBuffer(): void {
+    if (!this.project) return;
+    
+    const playheadUs = this.currentTime * 1_000_000;
+    const frameDurationUs = (1 / this.fps) * 1_000_000;
+    const toleranceUs = frameDurationUs * 1.5;
+
+    for (const source of this.sources.values()) {
+      // Check if we are running low on future frames (less than 1.0 second ahead)
+      const hasFutureFrame = source.frameCache.hasNear(playheadUs + 1_000_000, toleranceUs);
+      
+      if (!hasFutureFrame) {
+        // Start/resume the demuxer to extract more frames
+        source.demuxer.startExtracting();
+      }
+    }
+  }
+
+  /**
    * Check whether all active video clips at `timeSeconds` have a
    * frame available in their cache within a reasonable tolerance.
    */
@@ -560,6 +644,8 @@ export class PreviewEngine {
     this.currentTime += advanceBy;
     this.lastFrameTime = now;
 
+    this.maintainBuffer();
+
     // Check if we've reached the end of the timeline
     if (this.project) {
       if (this.currentTime >= this.project.duration) {
@@ -604,6 +690,11 @@ export class PreviewEngine {
    */
   private checkDecodeComplete(): void {
     if (!this.isFullyDecoded()) return;
+    
+    if (this.progressCallback) {
+      this.progressCallback(100, 100);
+    }
+
     for (const resolve of this.decodeResolvers) {
       resolve();
     }
@@ -611,12 +702,12 @@ export class PreviewEngine {
   }
 
   /**
-   * Returns true when every loaded source has decoded all its samples.
+   * Returns true when every loaded source has configured its decoder.
    */
   private isFullyDecoded(): boolean {
     if (this.sources.size === 0) return false;
     for (const source of this.sources.values()) {
-      if (source.decodedFrames < source.totalSamples) return false;
+      if (!source.decoder.isConfigured) return false;
     }
     return true;
   }

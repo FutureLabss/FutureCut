@@ -166,7 +166,7 @@ export function Editor() {
             {project.name}
           </h1>
           <span className="text-xs text-[var(--text-muted)] font-mono">
-            Phase 4
+            Phase 5
           </span>
           <div className="w-px h-4 bg-[var(--border)]" />
           <span className="text-xs font-medium text-[var(--text-secondary)] flex items-center gap-1.5">

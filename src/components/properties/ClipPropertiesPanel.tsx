@@ -24,6 +24,7 @@ export function ClipPropertiesPanel() {
   
   const project = useEditorStore((s) => s.project);
   const assets = useEditorStore((s) => s.assets);
+  const serverProjectId = useEditorStore((s) => s.serverProjectId);
   const setClipTransition = useEditorStore((s) => s.setClipTransition);
   const updateTextProperties = useEditorStore((s) => s.updateTextProperties);
   const deleteClipAction = useEditorStore((s) => s.deleteClip);
@@ -50,7 +51,7 @@ export function ClipPropertiesPanel() {
   const [sceneStatus, setSceneStatus] = useState<string | null>(null);
   const [sceneError, setSceneError] = useState<string | null>(null);
 
-  const [targetRatio, setTargetRatio] = useState<"9:16" | "1:1" | "4:5">("9:16");
+  const [targetRatio, setTargetRatio] = useState<"9:16" | "1:1" | "4:5" | "16:9">("9:16");
   const [reframeJobId, setReframeJobId] = useState<string | null>(null);
   const [reframeProgress, setReframeProgress] = useState<number>(0);
   const [reframeStatus, setReframeStatus] = useState<string | null>(null);
@@ -210,7 +211,12 @@ export function ClipPropertiesPanel() {
 
   const handleRunSceneDetection = async () => {
     if (!selectedClip) return;
+    if (!serverProjectId) {
+      setSceneError("Project must be saved before running AI jobs.");
+      return;
+    }
     const asset = assets[selectedClip.sourceId];
+    const { file, objectUrl, ...serializableAsset } = asset;
     setSceneError(null);
     setSceneStatus("queued");
 
@@ -219,10 +225,10 @@ export function ClipPropertiesPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: project.id,
+          projectId: serverProjectId,
           clipId: selectedClip.id,
           jobType: "detect_scenes",
-          inputData: { asset },
+          inputData: { asset: serializableAsset },
         }),
       });
 
@@ -237,7 +243,12 @@ export function ClipPropertiesPanel() {
 
   const handleRunAutoReframe = async () => {
     if (!selectedClip) return;
+    if (!serverProjectId) {
+      setReframeError("Project must be saved before running AI jobs.");
+      return;
+    }
     const asset = assets[selectedClip.sourceId];
+    const { file, objectUrl, ...serializableAsset } = asset;
     setReframeError(null);
     setReframeStatus("queued");
 
@@ -246,10 +257,10 @@ export function ClipPropertiesPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: project.id,
+          projectId: serverProjectId,
           clipId: selectedClip.id,
           jobType: "reframe",
-          inputData: { targetAspectRatio: targetRatio, asset },
+          inputData: { targetAspectRatio: targetRatio, asset: serializableAsset },
         }),
       });
 
@@ -264,7 +275,12 @@ export function ClipPropertiesPanel() {
 
   const handleRunNoiseReduction = async () => {
     if (!selectedClip) return;
+    if (!serverProjectId) {
+      setDenoiseError("Project must be saved before running AI jobs.");
+      return;
+    }
     const asset = assets[selectedClip.sourceId];
+    const { file, objectUrl, ...serializableAsset } = asset;
     setDenoiseError(null);
     setDenoiseStatus("queued");
 
@@ -273,10 +289,10 @@ export function ClipPropertiesPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: project.id,
+          projectId: serverProjectId,
           clipId: selectedClip.id,
           jobType: "denoise",
-          inputData: { asset },
+          inputData: { asset: serializableAsset },
         }),
       });
 
@@ -748,6 +764,7 @@ export function ClipPropertiesPanel() {
                       <option value="9:16">Portrait 9:16</option>
                       <option value="1:1">Square 1:1</option>
                       <option value="4:5">Portrait 4:5</option>
+                      <option value="16:9">Landscape 16:9</option>
                     </select>
 
                     {reframeStatus === "processing" || reframeStatus === "queued" ? (
