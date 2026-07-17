@@ -220,7 +220,6 @@ export class PreviewEngine {
 
           resolve(cfg);
           this.checkDecodeComplete();
-        }
         } catch (err) {
           console.error(`Failed to configure decoder for asset ${asset.id}:`, err);
           resolve(null);
