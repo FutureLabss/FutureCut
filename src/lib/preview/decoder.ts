@@ -44,6 +44,7 @@ export class Decoder {
   private pendingFrames = 0;
   private readonly MAX_PENDING = 10;
   private _isConfigured = false;
+  private lastConfig: VideoDecoderConfig | null = null;
 
   constructor(options: DecoderOptions) {
     this.onFrame = options.onFrame;
@@ -61,7 +62,7 @@ export class Decoder {
     // Clean up existing decoder if any
     this.dispose();
 
-    let targetConfig: VideoDecoderConfig = {
+    const targetConfig: VideoDecoderConfig = {
       ...config,
       hardwareAcceleration: "prefer-hardware",
     };
@@ -115,6 +116,7 @@ export class Decoder {
     });
 
     this.decoder.configure(targetConfig);
+    this.lastConfig = targetConfig;
     this._isConfigured = true;
   }
 
@@ -152,7 +154,7 @@ export class Decoder {
 
   /**
    * Reset the decoder for seeking.
-   * Flushes pending work and resets internal state.
+   * Flushes pending work, resets internal state, and re-configures the decoder.
    */
   async reset(): Promise<void> {
     if (!this.decoder) return;
@@ -160,6 +162,9 @@ export class Decoder {
     if (this.decoder.state === "configured") {
       this.decoder.reset();
       this.pendingFrames = 0;
+      if (this.lastConfig) {
+        this.decoder.configure(this.lastConfig);
+      }
     }
   }
 

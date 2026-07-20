@@ -71,17 +71,17 @@ export class FrameCache {
 
   /**
    * Get the nearest cached frame to a given timestamp.
-   * Useful for fast scrubbing — shows closest available frame.
+   * Useful for fast scrubbing — shows closest available frame within maxDistanceUs.
    */
-  getNearest(timestampUs: number): ImageBitmap | null {
+  getNearest(timestampUs: number, maxDistanceUs: number = 2_000_000): ImageBitmap | null {
     if (this.cache.size === 0) return null;
 
     let nearest: ImageBitmap | null = null;
-    let nearestDist = Infinity;
+    let nearestDist = maxDistanceUs;
 
     for (const [key, bitmap] of this.cache) {
       const dist = Math.abs(key - timestampUs);
-      if (dist < nearestDist) {
+      if (dist <= nearestDist) {
         nearestDist = dist;
         nearest = bitmap;
       }

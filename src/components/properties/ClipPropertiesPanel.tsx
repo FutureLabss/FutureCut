@@ -81,20 +81,9 @@ export function ClipPropertiesPanel() {
     }
   }
 
-  if (!selectedClip || !parentTrack) {
-    return (
-      <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] p-4 flex flex-col justify-center items-center text-center">
-        <span className="text-2xl mb-2">👈</span>
-        <p className="text-xs text-[var(--text-secondary)]">
-          Select a clip on the timeline to edit properties
-        </p>
-      </div>
-    );
-  }
-
-  const isVideo = parentTrack.type === "video";
-  const isAudio = parentTrack.type === "audio";
-  const isText = parentTrack.type === "text";
+  const isVideo = parentTrack ? parentTrack.type === "video" : false;
+  const isAudio = parentTrack ? parentTrack.type === "audio" : false;
+  const isText = parentTrack ? parentTrack.type === "text" : false;
 
   // Poll Scene Detection Job
   useEffect(() => {
@@ -305,12 +294,13 @@ export function ClipPropertiesPanel() {
     }
   };
 
-  const duration = clipDuration(selectedClip);
-  const clipRelativePlayhead = Math.max(0, playheadTime - selectedClip.startTime);
+  const duration = selectedClip ? clipDuration(selectedClip) : 0;
+  const clipRelativePlayhead = selectedClip ? Math.max(0, playheadTime - selectedClip.startTime) : 0;
 
   // Delete clip helper
   const handleDelete = () => {
-    deleteClipAction(selectedClip!.id);
+    if (!selectedClip) return;
+    deleteClipAction(selectedClip.id);
     selectClip(null);
   };
 
@@ -318,13 +308,14 @@ export function ClipPropertiesPanel() {
   // Filter stack helpers
   // ============================================================
   const handleAddFilter = (type: "brightness" | "contrast" | "saturation" | "lut") => {
+    if (!selectedClip) return;
     if (type === "lut") {
       // Check if LUT already active
-      const hasLut = selectedClip!.filters?.some((f) => f.type === "lut");
+      const hasLut = selectedClip.filters?.some((f) => f.type === "lut");
       if (hasLut) return;
-      addFilter(selectedClip!.id, { type: "lut", value: 0.0, lutId: "warm" });
+      addFilter(selectedClip.id, { type: "lut", value: 0.0, lutId: "warm" });
     } else {
-      addFilter(selectedClip!.id, { type, value: 0.0 });
+      addFilter(selectedClip.id, { type, value: 0.0 });
     }
   };
 
@@ -332,39 +323,54 @@ export function ClipPropertiesPanel() {
   // Speed curve helpers
   // ============================================================
   const handleSetConstantSpeed = (multiplier: number) => {
-    setSpeed(selectedClip!.id, [{ time: 0, speed: multiplier }]);
+    if (!selectedClip) return;
+    setSpeed(selectedClip.id, [{ time: 0, speed: multiplier }]);
   };
 
   const handleAddSpeedRamp = () => {
+    if (!selectedClip) return;
     // Adds a 3-point speed ramp: normal start -> fast middle -> normal end
-    const srcDuration = selectedClip!.sourceOutPoint - selectedClip!.sourceInPoint;
+    const srcDuration = selectedClip.sourceOutPoint - selectedClip.sourceInPoint;
     const ramp = [
-      { time: selectedClip!.sourceInPoint, speed: 1.0 },
-      { time: selectedClip!.sourceInPoint + srcDuration * 0.5, speed: 2.0 },
-      { time: selectedClip!.sourceOutPoint, speed: 1.0 },
+      { time: selectedClip.sourceInPoint, speed: 1.0 },
+      { time: selectedClip.sourceInPoint + srcDuration * 0.5, speed: 2.0 },
+      { time: selectedClip.sourceOutPoint, speed: 1.0 },
     ];
-    setSpeed(selectedClip!.id, ramp);
+    setSpeed(selectedClip.id, ramp);
   };
 
   const handleClearSpeedRamp = () => {
-    setSpeed(selectedClip!.id, []);
+    if (!selectedClip) return;
+    setSpeed(selectedClip.id, []);
   };
 
   // ============================================================
   // Keyframe helpers
   // ============================================================
   const handleAddKeyframe = () => {
+    if (!selectedClip) return;
     const kf: Keyframe = {
       time: clipRelativePlayhead,
       value: kfValue,
       easing: kfEasing,
     };
-    setKeyframe(selectedClip!.id, selectedProperty, kf);
+    setKeyframe(selectedClip.id, selectedProperty, kf);
   };
 
-  const currentTrackKeyframes =
-    selectedClip.keyframedProps?.find((t) => t.property === selectedProperty)
-      ?.keyframes ?? [];
+  const currentTrackKeyframes = selectedClip
+    ? selectedClip.keyframedProps?.find((t) => t.property === selectedProperty)?.keyframes ?? []
+    : [];
+
+  if (!selectedClip || !parentTrack) {
+    return (
+      <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] p-4 flex flex-col justify-center items-center text-center">
+        <span className="text-2xl mb-2">👈</span>
+        <p className="text-xs text-[var(--text-secondary)]">
+          Select a clip on the timeline to edit properties
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0 overflow-y-auto">

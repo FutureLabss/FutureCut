@@ -283,9 +283,20 @@ export class PreviewEngine {
     if (!this.offscreenCtx) return;
 
     // Update playhead position in all frame caches for smart eviction
-    const playheadUs = timeSeconds * 1_000_000;
     for (const source of this.sources.values()) {
-      source.frameCache.setPlayhead(playheadUs);
+      const activeClip = this.project.tracks
+        .flatMap((t) => t.clips)
+        .find(
+          (c) =>
+            c.sourceId === source.assetId &&
+            timeSeconds >= c.startTime &&
+            timeSeconds <= clipEndTime(c)
+        );
+
+      if (activeClip) {
+        const sourceTime = sourceTimeForTimelineTime(activeClip, timeSeconds - activeClip.startTime);
+        source.frameCache.setPlayhead(sourceTime * 1_000_000);
+      }
       await this.ensureBufferForSource(source, timeSeconds);
     }
 
@@ -473,22 +484,40 @@ export class PreviewEngine {
    * If not, seeks the demuxer to the playhead (snapping to keyframe) and demuxes a short window.
    */
   private async ensureBufferForSource(source: ActiveSource, timeSeconds: number): Promise<void> {
-    const playheadUs = timeSeconds * 1_000_000;
+    const activeClip = this.project?.tracks
+      .flatMap((t) => t.clips)
+      .find(
+        (c) =>
+          c.sourceId === source.assetId &&
+          timeSeconds >= c.startTime &&
+          timeSeconds <= clipEndTime(c)
+      );
+
+    if (!activeClip) {
+      return;
+    }
+
+    const sourceTime = sourceTimeForTimelineTime(activeClip, timeSeconds - activeClip.startTime);
+    const playheadUs = sourceTime * 1_000_000;
     const frameDurationUs = (1 / this.fps) * 1_000_000;
     const toleranceUs = frameDurationUs * 1.5;
 
     // Check if the frame at the playhead is already cached
     const hasCurrentFrame = source.frameCache.hasNear(playheadUs, toleranceUs);
     
-    // We also want some buffer ahead of the playhead (e.g. 1 second ahead)
-    const hasFutureFrame = source.frameCache.hasNear(playheadUs + 1_000_000, toleranceUs);
+    // We also want some buffer ahead of the playhead (e.g. 1 second ahead in timeline)
+    const lookaheadTimeSeconds = Math.min(timeSeconds + 1.0, clipEndTime(activeClip));
+    const lookaheadSourceTime = sourceTimeForTimelineTime(activeClip, lookaheadTimeSeconds - activeClip.startTime);
+    const lookaheadPlayheadUs = lookaheadSourceTime * 1_000_000;
+
+    const hasFutureFrame = source.frameCache.hasNear(lookaheadPlayheadUs, toleranceUs);
 
     if (hasCurrentFrame && hasFutureFrame) {
       return;
     }
 
-    // Determine the keyframe time for the target time by seeking the demuxer
-    const keyframeTime = source.demuxer.seek(timeSeconds);
+    // Determine keyframe timestamp without mutating demuxer extraction state
+    const keyframeTime = source.demuxer.getKeyframeTime(sourceTime);
 
     if (source.lastSoughtKeyframeTime === keyframeTime) {
       // Same GOP. Just make sure the demuxer is running to finish decoding
@@ -502,7 +531,7 @@ export class PreviewEngine {
     source.pendingSamples = [];
 
     // Seek the demuxer and set the last sought keyframe time
-    source.demuxer.seek(timeSeconds);
+    source.demuxer.seek(sourceTime);
     source.lastSoughtKeyframeTime = keyframeTime;
 
     // Start extracting from the keyframe
@@ -516,13 +545,28 @@ export class PreviewEngine {
   private maintainBuffer(): void {
     if (!this.project) return;
     
-    const playheadUs = this.currentTime * 1_000_000;
     const frameDurationUs = (1 / this.fps) * 1_000_000;
     const toleranceUs = frameDurationUs * 1.5;
 
     for (const source of this.sources.values()) {
+      // Find if this source is active at current playback time
+      const activeClip = this.project.tracks
+        .flatMap((t) => t.clips)
+        .find(
+          (c) =>
+            c.sourceId === source.assetId &&
+            this.currentTime >= c.startTime &&
+            this.currentTime <= clipEndTime(c)
+        );
+
+      if (!activeClip) continue;
+
+      const lookaheadTimeSeconds = Math.min(this.currentTime + 1.0, clipEndTime(activeClip));
+      const lookaheadSourceTime = sourceTimeForTimelineTime(activeClip, lookaheadTimeSeconds - activeClip.startTime);
+      const lookaheadPlayheadUs = lookaheadSourceTime * 1_000_000;
+
       // Check if we are running low on future frames (less than 1.0 second ahead)
-      const hasFutureFrame = source.frameCache.hasNear(playheadUs + 1_000_000, toleranceUs);
+      const hasFutureFrame = source.frameCache.hasNear(lookaheadPlayheadUs, toleranceUs);
       
       if (!hasFutureFrame) {
         // Start/resume the demuxer to extract more frames

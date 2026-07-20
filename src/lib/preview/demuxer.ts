@@ -53,7 +53,7 @@ export class Demuxer {
 
   /**
    * Initialize the demuxer with a video file.
-   * Streams the file data progressively — does not load entirely into memory.
+   * Streams the file data progressively — resolves as soon as header configuration is ready.
    */
   async init(
     file: File,
@@ -67,18 +67,38 @@ export class Demuxer {
     const reader = file.stream().getReader();
     let offset = 0;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    let readyResolver: (() => void) | null = null;
+    const readyPromise = new Promise<void>((resolve) => {
+      readyResolver = resolve;
+    });
 
-      // mp4box requires an ArrayBuffer with a fileStart property
-      const buffer = value.buffer as ArrayBuffer & { fileStart: number };
-      buffer.fileStart = offset;
-      this.mp4File.appendBuffer(buffer);
-      offset += value.byteLength;
-    }
+    const readStream = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-    this.mp4File.flush();
+        // mp4box requires an ArrayBuffer with a fileStart property
+        const buffer = value.buffer as ArrayBuffer & { fileStart: number };
+        buffer.fileStart = offset;
+        this.mp4File.appendBuffer(buffer);
+        offset += value.byteLength;
+
+        if (this._config && readyResolver) {
+          readyResolver();
+          readyResolver = null;
+        }
+      }
+      if (this.mp4File) {
+        this.mp4File.flush();
+      }
+      if (readyResolver) {
+        readyResolver();
+        readyResolver = null;
+      }
+    };
+
+    const streamPromise = readStream();
+    await Promise.race([readyPromise, streamPromise]);
 
     if (this.configPromise) {
       await this.configPromise;
@@ -89,7 +109,7 @@ export class Demuxer {
    * Start extracting samples from the video track.
    */
   startExtracting(): void {
-    if (this.videoTrackId !== null) {
+    if (this.videoTrackId !== null && this.mp4File) {
       this.mp4File.setExtractionOptions(this.videoTrackId, null, {
         nbSamples: 100, // Process 100 samples at a time
       });
@@ -114,6 +134,36 @@ export class Demuxer {
     if (!this.mp4File) return 0;
     const seekResult = this.mp4File.seek(timeInSeconds, true);
     return seekResult.offset / (seekResult.timescale || 1);
+  }
+
+  /**
+   * Return the keyframe timestamp (in seconds) for a given time
+   * without mutating mp4File sample extraction state.
+   */
+  getKeyframeTime(timeInSeconds: number): number {
+    if (!this.mp4File || this.videoTrackId === null) return 0;
+    try {
+      const trak = this.mp4File.getTrackById(this.videoTrackId);
+      if (!trak || !trak.samples || trak.samples.length === 0) {
+        return Math.floor(timeInSeconds / 2) * 2;
+      }
+
+      const timescale = trak.mdia?.mdhd?.timescale || 1;
+      const targetCts = timeInSeconds * timescale;
+      let keyframeCts = 0;
+
+      for (let i = 0; i < trak.samples.length; i++) {
+        const sample = trak.samples[i];
+        if (sample.cts > targetCts) break;
+        if (sample.is_sync) {
+          keyframeCts = sample.cts;
+        }
+      }
+
+      return keyframeCts / timescale;
+    } catch {
+      return 0;
+    }
   }
 
   /**
