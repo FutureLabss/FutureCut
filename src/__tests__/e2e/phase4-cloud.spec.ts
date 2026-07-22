@@ -6,13 +6,13 @@
 // share link in fresh unauthenticated context → confirm playback.
 // ============================================================
 
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import path from "path";
 
 const TEST_VIDEO = path.resolve(__dirname, "fixtures/test-video.mp4");
 
 test.describe("Phase 4: Cloud Features", () => {
-  test("should sign up, edit, autosave, restore after refresh, and share", async ({ page, context }) => {
+  test("should sign up, edit, autosave, restore after refresh, and share", async ({ page }) => {
     // 1. Navigate to signin page
     await page.goto("/signin");
     await page.waitForLoadState("networkidle");

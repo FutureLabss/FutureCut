@@ -26,7 +26,7 @@ import {
 export function addTrack(
   tracks: Track[],
   type: TrackType,
-  name?: string
+  _name?: string
 ): Track[] {
   const newOrder =
     tracks.length > 0 ? Math.max(...tracks.map((t) => t.order)) + 1 : 0;
@@ -541,7 +541,7 @@ export function setClipKeyframe(
     const newClips = track.clips.map((c) => {
       if (c.id === clipId) {
         const keyframedProps = c.keyframedProps ? [...c.keyframedProps] : [];
-        let trackIndex = keyframedProps.findIndex((t) => t.property === property);
+        const trackIndex = keyframedProps.findIndex((t) => t.property === property);
 
         if (trackIndex === -1) {
           keyframedProps.push({ property, keyframes: [keyframe] });

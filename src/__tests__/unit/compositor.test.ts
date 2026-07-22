@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { renderFrame } from "@/lib/preview/compositor";
-import type { Project, Track, Clip } from "@/lib/model/types";
+import type { Project } from "@/lib/model/types";
 
 // Helper to create a canvas 2D mock context
 function createMockContext() {
@@ -368,7 +368,7 @@ describe("Visual Compositor", () => {
     });
 
     // The compositor sets ctx.filter to the combined filter string
-    expect((ctx as any).filter).toBe("brightness(120%) contrast(70%) saturate(150%)");
+    expect((ctx as unknown as { filter?: string }).filter).toBe("brightness(120%) contrast(70%) saturate(150%)");
   });
 
   it("should apply keyframed opacity and position transforms to video clips", async () => {

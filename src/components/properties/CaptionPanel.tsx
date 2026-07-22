@@ -14,7 +14,7 @@
 import { useState, useEffect } from "react";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useUIStore } from "@/lib/store/uiStore";
-import { clipDuration, clipEndTime } from "@/lib/model/types";
+import { clipEndTime } from "@/lib/model/types";
 import { formatTimecode } from "@/lib/utils/time";
 
 export function CaptionPanel() {
@@ -67,10 +67,10 @@ export function CaptionPanel() {
           setJobId(null);
           setError(job.error_message || "Transcription job failed");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearInterval(interval);
         setJobId(null);
-        setError(err.message || "Error tracking job");
+        setError(err instanceof Error ? err.message : "Error tracking job");
       }
     }, 1000);
 
@@ -104,7 +104,7 @@ export function CaptionPanel() {
     }
 
     // Strip non-serializable fields (File, objectUrl) before sending
-    const { file, objectUrl, ...serializableAsset } = videoAsset;
+    const { file: _file, objectUrl: _objectUrl, ...serializableAsset } = videoAsset;
 
     setError(null);
     setStatus("queued");
@@ -129,20 +129,20 @@ export function CaptionPanel() {
 
       const data = await res.json();
       setJobId(data.id);
-    } catch (err: any) {
-      setError(err.message || "Failed to start transcription");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to start transcription");
       setStatus(null);
     }
   };
 
   // Update styling of all captions in unison
-  const handleUpdateGlobalStyling = (prop: string, val: any) => {
+  const handleUpdateGlobalStyling = (prop: string, val: string | number) => {
     if (!captionTrack) return;
     
     // Save to local view state
-    if (prop === "fontFamily") setFontFamily(val);
+    if (prop === "fontFamily") setFontFamily(String(val));
     if (prop === "fontSize") setFontSize(Number(val));
-    if (prop === "color") setColor(val);
+    if (prop === "color") setColor(String(val));
     if (prop === "posY") setPosY(Number(val));
 
     // Batch update clips on caption track

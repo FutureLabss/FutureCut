@@ -12,7 +12,7 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { useStore } from "zustand";
-import { useEditorStore, useTemporalStore } from "@/lib/store/editorStore";
+import { useEditorStore } from "@/lib/store/editorStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { PreviewCanvas } from "./preview/PreviewCanvas";
 import { TransportControls } from "./preview/TransportControls";
@@ -41,16 +41,20 @@ export function Editor() {
   useAutosave();
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => {
+      setMounted(true);
+    });
   }, []);
 
   // Auto-switch to properties tab on mobile/tablet when a clip is selected
   useEffect(() => {
-    if (selectedClipId) {
-      setActiveTab("properties");
-    } else {
-      setActiveTab("timeline");
-    }
+    queueMicrotask(() => {
+      if (selectedClipId) {
+        setActiveTab("properties");
+      } else {
+        setActiveTab("timeline");
+      }
+    });
   }, [selectedClipId]);
 
   // Bind the temporal store reactively to check past/future states

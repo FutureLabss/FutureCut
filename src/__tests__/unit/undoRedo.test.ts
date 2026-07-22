@@ -39,19 +39,19 @@ describe("Undo/Redo integration", () => {
 
     useEditorStore.getState().trimClipEnd(originalClipId, 8);
 
-    let updatedState = useEditorStore.getState();
+    const updatedState = useEditorStore.getState();
     expect(clipDuration(updatedState.project.tracks[0].clips[0])).toBe(8);
     expect(useEditorStore.temporal.getState().pastStates).toHaveLength(2);
 
     useEditorStore.temporal.getState().undo();
 
-    let stateAfterUndo = useEditorStore.getState();
+    const stateAfterUndo = useEditorStore.getState();
     expect(clipDuration(stateAfterUndo.project.tracks[0].clips[0])).toBe(10);
     expect(useEditorStore.temporal.getState().futureStates).toHaveLength(1);
 
     useEditorStore.temporal.getState().redo();
 
-    let stateAfterRedo = useEditorStore.getState();
+    const stateAfterRedo = useEditorStore.getState();
     expect(clipDuration(stateAfterRedo.project.tracks[0].clips[0])).toBe(8);
     expect(useEditorStore.temporal.getState().futureStates).toHaveLength(0);
   });
@@ -72,16 +72,16 @@ describe("Undo/Redo integration", () => {
 
     useEditorStore.getState().splitAtPlayhead(originalClipId, 4);
 
-    let stateAfterSplit = useEditorStore.getState();
+    const stateAfterSplit = useEditorStore.getState();
     expect(stateAfterSplit.project.tracks[0].clips).toHaveLength(2);
 
     useEditorStore.temporal.getState().undo();
-    let stateAfterUndo = useEditorStore.getState();
-    expect(stateAfterUndo.project.tracks[0].clips).toHaveLength(1);
+    const stateAfterUndoSplit = useEditorStore.getState();
+    expect(stateAfterUndoSplit.project.tracks[0].clips).toHaveLength(1);
 
     useEditorStore.temporal.getState().redo();
-    let stateAfterRedo = useEditorStore.getState();
-    expect(stateAfterRedo.project.tracks[0].clips).toHaveLength(2);
+    const stateAfterRedoSplit = useEditorStore.getState();
+    expect(stateAfterRedoSplit.project.tracks[0].clips).toHaveLength(2);
   });
 
   it("should handle undo/redo for deleting a clip", () => {
@@ -100,17 +100,17 @@ describe("Undo/Redo integration", () => {
 
     useEditorStore.getState().deleteClip(originalClipId);
 
-    let stateAfterDelete = useEditorStore.getState();
+    const stateAfterDelete = useEditorStore.getState();
     expect(stateAfterDelete.project.tracks[0].clips).toHaveLength(0);
 
     useEditorStore.temporal.getState().undo();
-    let stateAfterUndo = useEditorStore.getState();
-    expect(stateAfterUndo.project.tracks[0].clips).toHaveLength(1);
-    expect(stateAfterUndo.project.tracks[0].clips[0].id).toBe(originalClipId);
+    const stateAfterUndoDelete = useEditorStore.getState();
+    expect(stateAfterUndoDelete.project.tracks[0].clips).toHaveLength(1);
+    expect(stateAfterUndoDelete.project.tracks[0].clips[0].id).toBe(originalClipId);
 
     useEditorStore.temporal.getState().redo();
-    let stateAfterRedo = useEditorStore.getState();
-    expect(stateAfterRedo.project.tracks[0].clips).toHaveLength(0);
+    const stateAfterRedoDelete = useEditorStore.getState();
+    expect(stateAfterRedoDelete.project.tracks[0].clips).toHaveLength(0);
   });
 
   it("should round-trip 20 sequential mutations without state corruption", () => {

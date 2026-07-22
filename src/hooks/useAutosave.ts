@@ -36,7 +36,7 @@ export function useAutosave() {
         serverUrl: asset.serverUrl,
       };
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, unknown>);
 
     const payload = {
       project,

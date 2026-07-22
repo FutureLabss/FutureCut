@@ -40,7 +40,7 @@ export function PreviewCanvas() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    engine.onRender((bitmap, width, height) => {
+    engine.onRender((bitmap, _width, _height) => {
       if (!bitmap) {
         // Render black frame (gap in timeline)
         ctx.fillStyle = "#000";

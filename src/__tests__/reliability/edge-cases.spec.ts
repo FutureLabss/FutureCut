@@ -9,7 +9,6 @@ import { test, expect } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 
-const TEST_VIDEO = path.resolve(__dirname, "../e2e/fixtures/test-video.mp4");
 const CORRUPT_VIDEO = path.resolve(__dirname, "fixtures/corrupt-video.mp4");
 
 test.describe("Reliability & Edge Cases", () => {

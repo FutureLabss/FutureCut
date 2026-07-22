@@ -33,7 +33,6 @@ export function sourceTimeForTimelineTime(
 
   // 3. Multi-point speed ramping interpolation
   let currentTimelineTime = 0;
-  let currentSourceTime = clip.sourceInPoint;
 
   for (let i = 0; i < sorted.length - 1; i++) {
     const pt1 = sorted[i];
@@ -67,7 +66,6 @@ export function sourceTimeForTimelineTime(
     }
 
     currentTimelineTime += intervalTimelineDuration;
-    currentSourceTime = t2;
   }
 
   // 4. Extrapolate beyond the last ramp point using the last speed

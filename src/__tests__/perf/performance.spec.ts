@@ -8,7 +8,6 @@
 
 import { test, expect } from "@playwright/test";
 import path from "path";
-import fs from "fs";
 import { authenticateAndCreateProject } from "../e2e/fixtures/auth-helper";
 
 const TEST_VIDEO = path.resolve(__dirname, "../e2e/fixtures/test-video.mp4");
@@ -71,7 +70,7 @@ test.describe("Performance", () => {
 
     for (let i = 0; i < 10; i++) {
       const memInfo = await page.evaluate(() => {
-        const perf = performance as any;
+        const perf = performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } };
         if (perf.memory) {
           return {
             used: perf.memory.usedJSHeapSize / 1024 / 1024,

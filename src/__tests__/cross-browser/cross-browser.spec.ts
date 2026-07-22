@@ -5,7 +5,7 @@
 // WebKit (Safari fallback mock) and checking if Firefox supports WebCodecs.
 // ============================================================
 
-import { test, expect, devices } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 test.describe("Cross-Browser Compatibility", () => {
   test("Chromium should support WebCodecs and render editor", async ({ page }) => {
@@ -25,9 +25,9 @@ test.describe("Cross-Browser Compatibility", () => {
     // Let's inject undefined for WebCodecs APIs
     await page.evaluate(() => {
       // Delete WebCodecs globals from window to force fallback behavior
-      delete (window as any).VideoDecoder;
-      delete (window as any).VideoFrame;
-      delete (window as any).EncodedVideoChunk;
+      delete (window as unknown as Record<string, unknown>).VideoDecoder;
+      delete (window as unknown as Record<string, unknown>).VideoFrame;
+      delete (window as unknown as Record<string, unknown>).EncodedVideoChunk;
       
       // Re-run detection if needed, or reload with injection
     });
@@ -41,9 +41,9 @@ test.describe("Unsupported browser simulation", () => {
   test.beforeEach(async ({ context }) => {
     // Inject script to delete WebCodecs before page load
     await context.addInitScript(() => {
-      delete (window as any).VideoDecoder;
-      delete (window as any).VideoFrame;
-      delete (window as any).EncodedVideoChunk;
+      delete (window as unknown as Record<string, unknown>).VideoDecoder;
+      delete (window as unknown as Record<string, unknown>).VideoFrame;
+      delete (window as unknown as Record<string, unknown>).EncodedVideoChunk;
     });
   });
 

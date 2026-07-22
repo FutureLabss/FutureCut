@@ -15,7 +15,7 @@ import { useUIStore } from "@/lib/store/uiStore";
 import { TimeRuler } from "./TimeRuler";
 import { TrackLane } from "./TrackLane";
 import { Playhead } from "./Playhead";
-import type { Track, TrackType } from "@/lib/model/types";
+import type { Track } from "@/lib/model/types";
 
 export function Timeline() {
   const containerRef = useRef<HTMLDivElement>(null);

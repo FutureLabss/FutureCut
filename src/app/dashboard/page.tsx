@@ -48,7 +48,9 @@ export default function DashboardPage() {
       router.push("/signin");
       return;
     }
-    fetchProjects();
+    queueMicrotask(() => {
+      fetchProjects();
+    });
   }, [status, router, fetchProjects]);
 
   const createProject = async () => {

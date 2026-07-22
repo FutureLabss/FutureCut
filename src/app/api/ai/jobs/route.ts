@@ -8,7 +8,7 @@ import { queryOne, execute } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
 // Local background queue runner simulator
-async function runBackgroundAIJob(jobId: string, jobType: string, projectId: string, clipId: string | null, inputData: any) {
+async function runBackgroundAIJob(jobId: string, jobType: string, projectId: string, clipId: string | null, inputData: Record<string, unknown> | null) {
   console.log(`[AI Worker] Starting job ${jobId} of type ${jobType}...`);
   try {
     // 1. Update job status to 'processing'
@@ -35,10 +35,10 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
 
     if (clipId) {
       // Find the clip in the project structure
-      let targetClip: any = null;
+      let targetClip: { sourceOutPoint?: number; sourceInPoint?: number; sourceId?: string } | null = null;
       if (projectData.tracks) {
         for (const track of projectData.tracks) {
-          const found = track.clips?.find((c: any) => c.id === clipId);
+          const found = track.clips?.find((c: { id?: string }) => c.id === clipId);
           if (found) {
             targetClip = found;
             break;
@@ -49,10 +49,10 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
       if (targetClip) {
         clipDurationVal = (targetClip.sourceOutPoint ?? 10) - (targetClip.sourceInPoint ?? 0);
         // Find asset
-        const assetId = targetClip.sourceId;
+        const _assetId = targetClip.sourceId;
         // In local db, assets are stored within the project_data or query from DB.
         // Let's look for asset in the input data or project metadata.
-        const asset = inputData?.asset;
+        const asset = (inputData?.asset as { serverUrl?: string; fileName?: string } | undefined);
         if (asset?.serverUrl) {
           sourceAssetUrl = asset.serverUrl;
           assetName = asset.fileName || "video.mp4";
@@ -68,7 +68,7 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
       }
     }, 1200);
 
-    let outputData: any = null;
+    let outputData: unknown = null;
 
     // 3. Process according to job type
     if (jobType === "detect_scenes") {
@@ -109,7 +109,7 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
         }
 
         const result = await response.json();
-        const words: any[] = [];
+        const words: Array<{ text: string; startTime: number; endTime: number; speakerId?: string }> = [];
         
         // Extract words from Deepgram output
         const channels = result.results?.channels || [];
@@ -145,7 +145,7 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
           "Let us know what you think and start creating today."
         ];
 
-        const words: any[] = [];
+        const words: Array<{ text: string; startTime: number; endTime: number; speakerId?: string }> = [];
         let wordTime = 0.5;
 
         for (let i = 0; i < mockPhrases.length; i++) {
@@ -173,7 +173,7 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
       }
     } else if (jobType === "reframe") {
       // Auto-reframe: returns crop keyframes to fit target aspect ratio
-      const targetAspectRatio = inputData.targetAspectRatio || "9:16";
+      const targetAspectRatio = (inputData?.targetAspectRatio as string) || "9:16";
       
       // We simulate subject tracking. We first run scene detection
       // to avoid panning animations across hard cuts, then generate keyframes.
@@ -188,7 +188,7 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
       }
       boundaries.push(clipDurationVal);
 
-      const cropKeyframes: any[] = [];
+      const cropKeyframes: Array<{ time: number; x: number; y: number; scale: number }> = [];
       // Normalize values: center x is 0, zoom scale depends on aspect ratio
       // For 16:9 to 9:16, zoom needs to be at least 1.77 to cover height
       const scale = targetAspectRatio === "9:16" ? 1.77 : targetAspectRatio === "1:1" ? 1.0 : 1.25;
@@ -249,11 +249,11 @@ async function runBackgroundAIJob(jobId: string, jobType: string, projectId: str
     );
     console.log(`[AI Worker] Job ${jobId} completed successfully.`);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[AI Worker] Job ${jobId} failed:`, err);
     await execute(
       "UPDATE ai_jobs SET status = 'failed', error_message = ? WHERE id = ?",
-      [err.message || "Unknown error", jobId]
+      [err instanceof Error ? err.message : "Unknown error", jobId]
     );
   }
 }

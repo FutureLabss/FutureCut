@@ -16,7 +16,6 @@ import type {
   Asset,
   Clip,
   Project,
-  Track,
   TrackType,
   Transition,
   Filter,
@@ -49,7 +48,6 @@ import {
   setClipDenoised,
 } from "../model/operations";
 import { generateId } from "../utils/id";
-import { speedAdjustedClipDuration } from "../utils/speed";
 
 // ============================================================
 // State shape

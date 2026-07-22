@@ -7,7 +7,7 @@
 // Shared between the preview canvas and the export pipeline.
 // ============================================================
 
-import type { Project, Track, Clip, Transition, Filter, KeyframeTrack } from "../model/types";
+import type { Project, Track, Clip, Filter } from "../model/types";
 import { clipDuration, clipEndTime } from "../model/types";
 import { interpolateKeyframes } from "../utils/interpolation";
 import { sourceTimeForTimelineTime } from "../utils/speed";

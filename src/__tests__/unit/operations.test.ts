@@ -32,7 +32,7 @@ import {
   applyAutoReframe,
   setClipDenoised,
 } from "@/lib/model/operations";
-import type { Track, Clip, Filter, Keyframe } from "@/lib/model/types";
+import type { Track, Clip, Keyframe } from "@/lib/model/types";
 import { clipDuration, clipEndTime, deriveProjectDuration } from "@/lib/model/types";
 
 // ============================================================

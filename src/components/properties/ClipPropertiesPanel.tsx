@@ -15,7 +15,7 @@ import { useState, useEffect } from "react";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { clipDuration } from "@/lib/model/types";
-import type { Filter, Keyframe } from "@/lib/model/types";
+import type { Keyframe } from "@/lib/model/types";
 
 export function ClipPropertiesPanel() {
   const selectedClipId = useUIStore((s) => s.selectedClipId);
@@ -25,7 +25,6 @@ export function ClipPropertiesPanel() {
   const project = useEditorStore((s) => s.project);
   const assets = useEditorStore((s) => s.assets);
   const serverProjectId = useEditorStore((s) => s.serverProjectId);
-  const setClipTransition = useEditorStore((s) => s.setClipTransition);
   const updateTextProperties = useEditorStore((s) => s.updateTextProperties);
   const deleteClipAction = useEditorStore((s) => s.deleteClip);
 
@@ -33,7 +32,6 @@ export function ClipPropertiesPanel() {
   const addFilter = useEditorStore((s) => s.addFilterToClip);
   const removeFilter = useEditorStore((s) => s.removeFilterFromClip);
   const updateFilter = useEditorStore((s) => s.updateClipFilter);
-  const reorderFilters = useEditorStore((s) => s.reorderClipFilters);
   const setSpeed = useEditorStore((s) => s.setClipSpeed);
   const setKeyframe = useEditorStore((s) => s.setClipKeyframe);
   const removeKeyframe = useEditorStore((s) => s.removeClipKeyframe);
@@ -112,11 +110,11 @@ export function ClipPropertiesPanel() {
           setSceneStatus(null);
           setSceneError(job.error_message || "Scene detection failed");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearInterval(interval);
         setSceneJobId(null);
         setSceneStatus(null);
-        setSceneError(err.message || "Scene tracking error");
+        setSceneError(err instanceof Error ? err.message : "Scene tracking error");
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -150,11 +148,11 @@ export function ClipPropertiesPanel() {
           setReframeStatus(null);
           setReframeError(job.error_message || "Reframe failed");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearInterval(interval);
         setReframeJobId(null);
         setReframeStatus(null);
-        setReframeError(err.message || "Reframe tracking error");
+        setReframeError(err instanceof Error ? err.message : "Reframe tracking error");
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -188,11 +186,11 @@ export function ClipPropertiesPanel() {
           setDenoiseStatus(null);
           setDenoiseError(job.error_message || "AI Denoise failed");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearInterval(interval);
         setDenoiseJobId(null);
         setDenoiseStatus(null);
-        setDenoiseError(err.message || "Denoise tracking error");
+        setDenoiseError(err instanceof Error ? err.message : "Denoise tracking error");
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -205,7 +203,7 @@ export function ClipPropertiesPanel() {
       return;
     }
     const asset = assets[selectedClip.sourceId];
-    const { file, objectUrl, ...serializableAsset } = asset;
+    const { file: _file, objectUrl: _objectUrl, ...serializableAsset } = asset;
     setSceneError(null);
     setSceneStatus("queued");
 
@@ -224,8 +222,8 @@ export function ClipPropertiesPanel() {
       if (!res.ok) throw new Error("Failed to start scene detection");
       const data = await res.json();
       setSceneJobId(data.id);
-    } catch (err: any) {
-      setSceneError(err.message || "Failed to start job");
+    } catch (err: unknown) {
+      setSceneError(err instanceof Error ? err.message : "Failed to start job");
       setSceneStatus(null);
     }
   };
@@ -237,7 +235,7 @@ export function ClipPropertiesPanel() {
       return;
     }
     const asset = assets[selectedClip.sourceId];
-    const { file, objectUrl, ...serializableAsset } = asset;
+    const { file: _file, objectUrl: _objectUrl, ...serializableAsset } = asset;
     setReframeError(null);
     setReframeStatus("queued");
 
@@ -256,8 +254,8 @@ export function ClipPropertiesPanel() {
       if (!res.ok) throw new Error("Failed to start auto-reframe");
       const data = await res.json();
       setReframeJobId(data.id);
-    } catch (err: any) {
-      setReframeError(err.message || "Failed to start job");
+    } catch (err: unknown) {
+      setReframeError(err instanceof Error ? err.message : "Failed to start job");
       setReframeStatus(null);
     }
   };
@@ -269,7 +267,7 @@ export function ClipPropertiesPanel() {
       return;
     }
     const asset = assets[selectedClip.sourceId];
-    const { file, objectUrl, ...serializableAsset } = asset;
+    const { file: _file, objectUrl: _objectUrl, ...serializableAsset } = asset;
     setDenoiseError(null);
     setDenoiseStatus("queued");
 
@@ -288,8 +286,8 @@ export function ClipPropertiesPanel() {
       if (!res.ok) throw new Error("Failed to start noise reduction");
       const data = await res.json();
       setDenoiseJobId(data.id);
-    } catch (err: any) {
-      setDenoiseError(err.message || "Failed to start job");
+    } catch (err: unknown) {
+      setDenoiseError(err instanceof Error ? err.message : "Failed to start job");
       setDenoiseStatus(null);
     }
   };
@@ -621,7 +619,7 @@ export function ClipPropertiesPanel() {
                 <label className="text-[10px] text-[var(--text-secondary)]">Target Property</label>
                 <select
                   value={selectedProperty}
-                  onChange={(e) => setSelectedProperty(e.target.value as any)}
+                  onChange={(e) => setSelectedProperty(e.target.value as "position.x" | "position.y" | "scale" | "rotation" | "opacity")}
                   className="w-full text-xs bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white"
                 >
                   <option value="position.x">Position X</option>
@@ -660,7 +658,7 @@ export function ClipPropertiesPanel() {
                 <label className="text-[10px] text-[var(--text-secondary)]">Easing Transition</label>
                 <select
                   value={kfEasing}
-                  onChange={(e) => setKfEasing(e.target.value as any)}
+                  onChange={(e) => setKfEasing(e.target.value as Keyframe["easing"])}
                   className="w-full text-xs bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white"
                 >
                   <option value="linear">Linear</option>
@@ -763,7 +761,7 @@ export function ClipPropertiesPanel() {
                   <div className="flex gap-2 items-center">
                     <select
                       value={targetRatio}
-                      onChange={(e) => setTargetRatio(e.target.value as any)}
+                      onChange={(e) => setTargetRatio(e.target.value as "9:16" | "1:1" | "4:5" | "16:9")}
                       disabled={reframeStatus === "processing" || reframeStatus === "queued"}
                       className="text-[10px] bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white focus:outline-none flex-1"
                     >

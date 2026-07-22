@@ -10,18 +10,28 @@
 
 import { getFFmpeg } from "./ffmpegLoader";
 import { fetchFile } from "@ffmpeg/util";
-import type { Project, Track, Clip, Asset } from "../model/types";
-import { clipDuration, clipEndTime } from "../model/types";
+import type { Project, Asset } from "../model/types";
+import { clipEndTime } from "../model/types";
 import { renderFrame } from "../preview/compositor";
 import { Demuxer, type DemuxedSample } from "../preview/demuxer";
 import { Decoder } from "../preview/decoder";
+import { WebCodecsExporter } from "./webCodecsExporter";
 
 export type ExportProgressCallback = (progress: number) => void;
 
-interface ExportOptions {
+export interface ExportOptions {
   project: Project;
   assets: Record<string, Asset>;
+  width?: number;
+  height?: number;
+  bitrateBps?: number;
   onProgress?: ExportProgressCallback;
+  writableStream?: WritableStream<Uint8Array>;
+  useServerFallback?: boolean;
+}
+
+export function canUseNativeWebCodecs(): boolean {
+  return typeof VideoEncoder !== "undefined" && typeof AudioEncoder !== "undefined";
 }
 
 /**
@@ -203,6 +213,34 @@ function getAtempoFilter(speed: number): string {
 export async function exportTimeline(options: ExportOptions): Promise<Blob> {
   const { project, assets, onProgress } = options;
 
+  // Try WebCodecs native hardware export first
+  if (canUseNativeWebCodecs()) {
+    try {
+      const exporter = new WebCodecsExporter();
+      const resultBlob = await exporter.export({
+        project,
+        assets,
+        width: options.width,
+        height: options.height,
+        bitrateBps: options.bitrateBps,
+        onProgress: (prog) => onProgress?.(prog.percent),
+        writableStream: options.writableStream,
+      });
+
+      if (resultBlob) {
+        return resultBlob;
+      }
+    } catch (err) {
+      console.warn("WebCodecs native export failed, falling back to FFmpeg WASM:", err);
+    }
+  }
+
+  // Fallback: FFmpeg WASM single-pass rendering
+  return exportTimelineFFmpeg(options);
+}
+
+export async function exportTimelineFFmpeg(options: ExportOptions): Promise<Blob> {
+  const { project, assets, onProgress } = options;
   const ffmpeg = await getFFmpeg();
 
   // Find all referenced video asset IDs
@@ -378,16 +416,16 @@ export async function exportTimeline(options: ExportOptions): Promise<Blob> {
     for (let i = 0; i < totalFrames; i++) {
       try {
         await ffmpeg.deleteFile(`frame_${i}.jpg`);
-      } catch (e) {}
+      } catch (_e) {}
     }
     for (const key in assetFileMap) {
       try {
         await ffmpeg.deleteFile(assetFileMap[key]);
-      } catch (e) {}
+      } catch (_e) {}
     }
     try {
       await ffmpeg.deleteFile("output.mp4");
-    } catch (e) {}
+    } catch (_e) {}
 
     return finalBlob;
   } finally {

@@ -162,7 +162,7 @@ function translateSql(sql: string): string {
 /**
  * Execute a query that returns a single row.
  */
-export async function queryOne<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+export async function queryOne<T>(sql: string, params: unknown[] = []): Promise<T | undefined> {
   if (isPostgres) {
     await initializePg();
     const pool = getPgPool();
@@ -177,7 +177,7 @@ export async function queryOne<T>(sql: string, params: any[] = []): Promise<T | 
 /**
  * Execute a query that returns multiple rows.
  */
-export async function queryAll<T>(sql: string, params: any[] = []): Promise<T[]> {
+export async function queryAll<T>(sql: string, params: unknown[] = []): Promise<T[]> {
   if (isPostgres) {
     await initializePg();
     const pool = getPgPool();
@@ -192,7 +192,7 @@ export async function queryAll<T>(sql: string, params: any[] = []): Promise<T[]>
 /**
  * Execute a query that modifies data (INSERT, UPDATE, DELETE).
  */
-export async function execute(sql: string, params: any[] = []): Promise<{ changes: number }> {
+export async function execute(sql: string, params: unknown[] = []): Promise<{ changes: number }> {
   if (isPostgres) {
     await initializePg();
     const pool = getPgPool();

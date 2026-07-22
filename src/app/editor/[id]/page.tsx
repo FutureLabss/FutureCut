@@ -18,7 +18,7 @@ import { getPreviewEngine } from "@/lib/preview/previewEngine";
 export default function EditorPage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [loading, setLoading] = useState(true);
   const [loadStatus, setLoadStatus] = useState("Loading project...");
   const [decodeProgress, setDecodeProgress] = useState(0);
@@ -72,12 +72,12 @@ export default function EditorPage() {
           };
         }
 
-        const hydratedAssets: Record<string, any> = {};
+        const hydratedAssets: Record<string, import("@/lib/model/types").Asset> = {};
         const assetEntries = Object.entries(serializedAssets);
 
         for (let i = 0; i < assetEntries.length; i++) {
           const [id, sAsset] = assetEntries[i];
-          const serializedAsset = sAsset as any;
+          const serializedAsset = sAsset as import("@/lib/model/types").Asset;
           setLoadStatus(
             `Loading video file ${i + 1}/${assetEntries.length}: ${
               serializedAsset.fileName
@@ -126,7 +126,7 @@ export default function EditorPage() {
         });
 
         for (const asset of Object.values(hydratedAssets)) {
-          await engine.loadAsset(asset as any);
+          await engine.loadAsset(asset);
         }
 
         // Wait for the full decode pipeline to finish so the user

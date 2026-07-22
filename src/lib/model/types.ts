@@ -27,6 +27,10 @@ export interface Asset {
   codec?: string;
   /** Server-side storage URL */
   serverUrl?: string;
+  /** Low-res, low-bitrate H.264 proxy URL for editing/scrubbing */
+  proxyUrl?: string;
+  /** Low-res proxy File handle */
+  proxyFile?: File;
 }
 
 export type TrackType = "video" | "audio" | "text";

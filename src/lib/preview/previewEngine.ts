@@ -9,10 +9,11 @@
 import { Demuxer, type DemuxedSample, type DemuxerConfig } from "./demuxer";
 import { Decoder } from "./decoder";
 import { FrameCache } from "./frameCache";
-import type { Asset, Clip, Track, Project } from "../model/types";
-import { clipDuration, clipEndTime } from "../model/types";
+import type { Asset, Project } from "../model/types";
+import { clipEndTime } from "../model/types";
 import { renderFrame } from "./compositor";
 import { sourceTimeForTimelineTime, getSpeedAtTime } from "../utils/speed";
+import { generateProxy, requiresProxy } from "../proxy/proxyGenerator";
 
 export type RenderCallback = (
   bitmap: ImageBitmap | null,
@@ -147,15 +148,27 @@ export class PreviewEngine {
       return this.sources.get(asset.id)!.config;
     }
 
+    // Ensure proxy is generated/bound for preview decoding
+    if (!asset.proxyFile && asset.file && requiresProxy(asset)) {
+      try {
+        const proxyRes = await generateProxy(asset);
+        if (proxyRes.proxyFile) {
+          asset.proxyFile = proxyRes.proxyFile;
+          asset.proxyUrl = proxyRes.proxyUrl;
+        }
+      } catch (err) {
+        console.warn(`Proxy generation failed for ${asset.fileName}, using original source:`, err);
+      }
+    }
+    const targetFile = asset.proxyFile || asset.file;
+
     const demuxer = new Demuxer();
     const frameCache = new FrameCache(300);
 
     return new Promise<DemuxerConfig | null>((resolve) => {
       let decoder: Decoder;
-      let config: DemuxerConfig;
 
       const onConfig = async (cfg: DemuxerConfig) => {
-        config = cfg;
 
         decoder = new Decoder({
           onFrame: async (frame: VideoFrame) => {
@@ -247,7 +260,7 @@ export class PreviewEngine {
         }
       };
 
-      demuxer.init(asset.file, onConfig, onSamples)
+      demuxer.init(targetFile, onConfig, onSamples)
         .then(() => {
           demuxer.startExtracting();
         })

@@ -49,21 +49,21 @@ export async function exportWithMediabunny(
   // we mock the structure of the API call to show how clean and fast it is.
   const chunks: Uint8Array[] = [];
   const mockMuxer = {
-    addVideoTrack: (config: any) => 0,
-    addAudioTrack: (config: any) => 1,
-    writeVideoChunk: (chunk: any) => {
+    addVideoTrack: (_config: unknown) => 0,
+    addAudioTrack: (_config: unknown) => 1,
+    writeVideoChunk: (chunk: { data: Uint8Array; timestamp?: number; type?: string }) => {
       chunks.push(chunk.data);
     },
-    writeAudioChunk: (chunk: any) => {
+    writeAudioChunk: (chunk: { data: Uint8Array; timestamp?: number; type?: string }) => {
       chunks.push(chunk.data);
     },
-    finalize: () => new Blob(chunks as any, { type: "video/mp4" }),
+    finalize: () => new Blob(chunks as BlobPart[], { type: "video/mp4" }),
   };
 
   // 2. Setup WebCodecs VideoEncoder
   // In Mediabunny, the VideoEncoder is configured directly using browser WebCodecs
   const videoEncoder = new VideoEncoder({
-    output: (chunk, metadata) => {
+    output: (chunk, _metadata) => {
       // Stream encoded video chunk straight to the Mp4Muxer container writer
       mockMuxer.writeVideoChunk({
         data: new Uint8Array(chunk.byteLength), // mock copy

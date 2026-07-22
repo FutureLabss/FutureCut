@@ -9,12 +9,10 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  splitClip,
   applyAutoReframe,
   setClipDenoised,
 } from "@/lib/model/operations";
 import type { Track, Clip } from "@/lib/model/types";
-import { clipDuration, clipEndTime, deriveProjectDuration } from "@/lib/model/types";
 import { useEditorStore } from "@/lib/store/editorStore";
 
 // ============================================================

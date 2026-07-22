@@ -114,7 +114,7 @@ export function UploadZone() {
         setIsProcessing(false);
       }
     },
-    [addAsset]
+    [addAsset, serverProjectId]
   );
 
   // ============================================================

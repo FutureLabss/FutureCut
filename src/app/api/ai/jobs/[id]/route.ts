@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const job = await queryOne<Record<string, any>>(
+  const job = await queryOne<Record<string, unknown>>(
     `SELECT j.* FROM ai_jobs j
      JOIN projects p ON j.project_id = p.id
      WHERE j.id = ? AND p.owner_id = ?`,
@@ -30,12 +30,12 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   }
 
   // Parse JSON data fields if present
-  if (job.input_data) {
+  if (job.input_data && typeof job.input_data === "string") {
     try {
       job.input_data = JSON.parse(job.input_data);
     } catch {}
   }
-  if (job.output_data) {
+  if (job.output_data && typeof job.output_data === "string") {
     try {
       job.output_data = JSON.parse(job.output_data);
     } catch {}
