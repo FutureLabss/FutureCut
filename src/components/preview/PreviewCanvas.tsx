@@ -106,8 +106,11 @@ export function PreviewCanvas() {
       engine.loadAsset(asset);
     }
 
-    // Await full decode, then clear the gate
-    engine.awaitFullDecode().then(() => {
+    // Await full decode with 3s max timeout, then clear the gate
+    Promise.race([
+      engine.awaitFullDecode(3000),
+      new Promise((res) => setTimeout(res, 3000)),
+    ]).finally(() => {
       useUIStore.getState().setDecoding(false);
       useUIStore.getState().setDecodeProgress(null);
 

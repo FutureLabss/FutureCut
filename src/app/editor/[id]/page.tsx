@@ -115,7 +115,7 @@ export default function EditorPage() {
 
         setLoadStatus("Preparing video for editing...");
 
-        // Load into preview engine
+        // Load into preview engine in parallel
         const engine = getPreviewEngine();
 
         // Set up progress tracking before loading assets
@@ -125,15 +125,22 @@ export default function EditorPage() {
           }
         });
 
-        for (const asset of Object.values(hydratedAssets)) {
-          await engine.loadAsset(asset);
-        }
+        const loadAssetPromises = Object.values(hydratedAssets).map((asset) =>
+          engine.loadAsset(asset)
+        );
 
-        // Wait for the full decode pipeline to finish so the user
-        // never hits buffering on first play
+        await Promise.race([
+          Promise.all(loadAssetPromises),
+          new Promise((res) => setTimeout(res, 2500)),
+        ]);
+
+        // Wait for full decode with a 2.5s max timeout safeguard
         const hasVideoAssets = Object.keys(hydratedAssets).length > 0;
         if (hasVideoAssets) {
-          await engine.awaitFullDecode();
+          await Promise.race([
+            engine.awaitFullDecode(2500),
+            new Promise((res) => setTimeout(res, 2500)),
+          ]);
         }
 
         engine.updateProject(project, hydratedAssets);

@@ -103,32 +103,21 @@ export function Playhead({ zoom, timelineHeight }: PlayheadProps) {
         height: `${timelineHeight}px`,
       }}
     >
-      {/* Playhead handle (draggable) */}
+      {/* Playhead handle (draggable purple diamond cap) */}
       <div
-        className="pointer-events-auto cursor-grab active:cursor-grabbing"
+        className="pointer-events-auto cursor-grab active:cursor-grabbing relative -ml-[7px] flex flex-col items-center group"
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
       >
-        {/* Triangle marker */}
-        <div
-          className="relative -ml-[5px]"
-          style={{ width: "11px" }}
-        >
-          <svg width="11" height="8" viewBox="0 0 11 8">
-            <polygon
-              points="0,0 11,0 5.5,8"
-              fill="var(--playhead)"
-            />
-          </svg>
-        </div>
+        {/* Diamond cap matching stitch/mainScreen.png */}
+        <div className="w-3.5 h-3.5 bg-purple-500 border border-purple-300 rounded-sm rotate-45 shadow-[0_0_12px_rgba(168,85,247,0.8)] group-hover:scale-110 transition-transform" />
       </div>
 
-      {/* Vertical line */}
+      {/* Vertical line matching stitch/mainScreen.png */}
       <div
-        className="w-px mx-auto"
+        className="w-[2px] -ml-[1px] bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]"
         style={{
-          height: `${timelineHeight - 8}px`,
-          backgroundColor: "var(--playhead)",
+          height: `${timelineHeight - 12}px`,
         }}
       />
     </div>

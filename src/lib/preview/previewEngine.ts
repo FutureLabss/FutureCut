@@ -101,12 +101,18 @@ export class PreviewEngine {
   /**
    * Returns a promise that resolves when ALL loaded sources have
    * finished decoding every sample. Use this to gate the editor UI
-   * so the user never hits buffering on first play.
+   * so the user never hits buffering on first play. Includes a 3s safety timeout.
    */
-  async awaitFullDecode(): Promise<void> {
+  async awaitFullDecode(timeoutMs = 3000): Promise<void> {
     if (this.isFullyDecoded()) return;
     return new Promise<void>((resolve) => {
-      this.decodeResolvers.push(resolve);
+      let timer: NodeJS.Timeout | null = null;
+      const done = () => {
+        if (timer) clearTimeout(timer);
+        resolve();
+      };
+      timer = setTimeout(done, timeoutMs);
+      this.decodeResolvers.push(done);
     });
   }
 
@@ -148,28 +154,47 @@ export class PreviewEngine {
       return this.sources.get(asset.id)!.config;
     }
 
-    // Ensure proxy is generated/bound for preview decoding
+    // Trigger proxy generation asynchronously in background so project hydration never blocks!
     if (!asset.proxyFile && asset.file && requiresProxy(asset)) {
-      try {
-        const proxyRes = await generateProxy(asset);
-        if (proxyRes.proxyFile) {
-          asset.proxyFile = proxyRes.proxyFile;
-          asset.proxyUrl = proxyRes.proxyUrl;
-        }
-      } catch (err) {
-        console.warn(`Proxy generation failed for ${asset.fileName}, using original source:`, err);
-      }
+      generateProxy(asset)
+        .then((proxyRes) => {
+          if (proxyRes.proxyFile) {
+            asset.proxyFile = proxyRes.proxyFile;
+            asset.proxyUrl = proxyRes.proxyUrl;
+          }
+        })
+        .catch((err) => {
+          console.warn(`Background proxy generation failed for ${asset.fileName}:`, err);
+        });
     }
+
     const targetFile = asset.proxyFile || asset.file;
+    if (!targetFile) {
+      return null;
+    }
 
     const demuxer = new Demuxer();
     const frameCache = new FrameCache(300);
 
     return new Promise<DemuxerConfig | null>((resolve) => {
+      let isResolved = false;
+      const safeResolve = (cfg: DemuxerConfig | null) => {
+        if (!isResolved) {
+          isResolved = true;
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+          resolve(cfg);
+        }
+      };
+
+      // 3-second safety fallback timer
+      const timeoutTimer = setTimeout(() => {
+        console.warn(`loadAsset timed out for ${asset.fileName}, continuing...`);
+        safeResolve(null);
+      }, 3000);
+
       let decoder: Decoder;
 
       const onConfig = async (cfg: DemuxerConfig) => {
-
         decoder = new Decoder({
           onFrame: async (frame: VideoFrame) => {
             // Immediately try to feed more samples since the decoder
@@ -219,7 +244,7 @@ export class PreviewEngine {
         try {
           await decoder.configure(decoderConfig);
 
-           this.sources.set(asset.id, {
+          this.sources.set(asset.id, {
             assetId: asset.id,
             demuxer,
             decoder,
@@ -231,11 +256,11 @@ export class PreviewEngine {
             lastSoughtKeyframeTime: 0,
           });
 
-          resolve(cfg);
+          safeResolve(cfg);
           this.checkDecodeComplete();
         } catch (err) {
           console.error(`Failed to configure decoder for asset ${asset.id}:`, err);
-          resolve(null);
+          safeResolve(null);
         }
       };
 
@@ -263,10 +288,16 @@ export class PreviewEngine {
       demuxer.init(targetFile, onConfig, onSamples)
         .then(() => {
           demuxer.startExtracting();
+          // If init completed but onConfig was not called (e.g. non-MP4 or audio-only asset)
+          setTimeout(() => {
+            if (!isResolved) {
+              safeResolve(null);
+            }
+          }, 50);
         })
         .catch((err) => {
           console.error(`Demuxer init failed for asset ${asset.id}:`, err);
-          resolve(null);
+          safeResolve(null);
         });
     });
   }
@@ -761,7 +792,7 @@ export class PreviewEngine {
    * Returns true when every loaded source has configured its decoder.
    */
   private isFullyDecoded(): boolean {
-    if (this.sources.size === 0) return false;
+    if (this.sources.size === 0) return true;
     for (const source of this.sources.values()) {
       if (!source.decoder.isConfigured) return false;
     }

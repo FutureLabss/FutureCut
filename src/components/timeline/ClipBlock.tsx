@@ -181,10 +181,10 @@ export function ClipBlock({ clip, zoom, trackType }: ClipBlockProps) {
       data-clip
       draggable={!dragMode}
       onDragStart={handleDragStart}
-      className="absolute top-2 bottom-2 rounded-md cursor-grab active:cursor-grabbing group transition-colors duration-100 flex items-center justify-between"
+      className="absolute top-1.5 bottom-1.5 rounded-2xl cursor-grab active:cursor-grabbing group transition-all duration-100 flex items-center justify-between border border-white/20 shadow-lg"
       style={{
         left: `${left}px`,
-        width: `${Math.max(width, 10)}px`, // Min width so clip is always visible/draggable
+        width: `${Math.max(width, 10)}px`,
         backgroundColor: bgColor,
       }}
       onClick={handleClick}
@@ -201,12 +201,29 @@ export function ClipBlock({ clip, zoom, trackType }: ClipBlockProps) {
     >
       {/* Selection border highlight */}
       {isSelected && (
-        <div className="absolute inset-0 rounded-md ring-2 ring-white/40 pointer-events-none" />
+        <div className="absolute inset-0 rounded-2xl ring-2 ring-purple-400 pointer-events-none" />
       )}
 
-      {/* Clip details & label */}
-      <div className="absolute inset-0 flex items-center px-3 overflow-hidden pointer-events-none select-none">
-        <span className="text-[10px] font-semibold text-white/95 truncate">
+      {/* Clip Icon Badge & Details matching stitch/mainScreen.png */}
+      <div className="absolute inset-0 flex items-center gap-2 px-3 overflow-hidden pointer-events-none select-none">
+        {/* Track Icon Badge */}
+        <div className="w-5 h-5 rounded-full bg-black/30 flex items-center justify-center shrink-0 text-white">
+          {trackType === "video" && (
+            <svg className="w-3 h-3 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+          {trackType === "audio" && (
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z" />
+            </svg>
+          )}
+          {trackType === "text" && (
+            <span className="text-xs font-bold font-outfit">T</span>
+          )}
+        </div>
+
+        <span className="text-xs font-semibold text-white truncate">
           {clipName}
         </span>
       </div>

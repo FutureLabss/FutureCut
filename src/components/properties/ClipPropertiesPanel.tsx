@@ -1,23 +1,16 @@
 "use client";
 
-// ============================================================
-// FutureCut — Clip Properties Panel (Phase 3 Creative Tools)
-// ============================================================
-// Sidebar showing detailed configuration settings for the
-// currently selected video or text clip:
-// - Timeline Info
-// - Filters stack (add/remove filters: brightness, contrast, saturation, LUTs)
-// - Speed curves (constant speed multiplier, simple ramps editor)
-// - Keyframe Animation Tracks (position X/Y, scale, rotation, opacity)
-// ============================================================
-
 import { useState, useEffect } from "react";
 import { useEditorStore } from "@/lib/store/editorStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { clipDuration } from "@/lib/model/types";
 import type { Keyframe } from "@/lib/model/types";
 
-export function ClipPropertiesPanel() {
+interface ClipPropertiesPanelProps {
+  tab?: "effects" | "audio" | "properties";
+}
+
+export function ClipPropertiesPanel({ tab = "effects" }: ClipPropertiesPanelProps) {
   const selectedClipId = useUIStore((s) => s.selectedClipId);
   const selectClip = useUIStore((s) => s.selectClip);
   const playheadTime = useUIStore((s) => s.playheadTime);
@@ -27,6 +20,8 @@ export function ClipPropertiesPanel() {
   const serverProjectId = useEditorStore((s) => s.serverProjectId);
   const updateTextProperties = useEditorStore((s) => s.updateTextProperties);
   const deleteClipAction = useEditorStore((s) => s.deleteClip);
+  const setTrackVolume = useEditorStore((s) => s.setTrackVolume);
+  const setTrackMuted = useEditorStore((s) => s.setTrackMuted);
 
   // Phase 3 Actions
   const addFilter = useEditorStore((s) => s.addFilterToClip);
@@ -302,13 +297,10 @@ export function ClipPropertiesPanel() {
     selectClip(null);
   };
 
-  // ============================================================
   // Filter stack helpers
-  // ============================================================
   const handleAddFilter = (type: "brightness" | "contrast" | "saturation" | "lut") => {
     if (!selectedClip) return;
     if (type === "lut") {
-      // Check if LUT already active
       const hasLut = selectedClip.filters?.some((f) => f.type === "lut");
       if (hasLut) return;
       addFilter(selectedClip.id, { type: "lut", value: 0.0, lutId: "warm" });
@@ -317,9 +309,7 @@ export function ClipPropertiesPanel() {
     }
   };
 
-  // ============================================================
   // Speed curve helpers
-  // ============================================================
   const handleSetConstantSpeed = (multiplier: number) => {
     if (!selectedClip) return;
     setSpeed(selectedClip.id, [{ time: 0, speed: multiplier }]);
@@ -327,7 +317,6 @@ export function ClipPropertiesPanel() {
 
   const handleAddSpeedRamp = () => {
     if (!selectedClip) return;
-    // Adds a 3-point speed ramp: normal start -> fast middle -> normal end
     const srcDuration = selectedClip.sourceOutPoint - selectedClip.sourceInPoint;
     const ramp = [
       { time: selectedClip.sourceInPoint, speed: 1.0 },
@@ -342,9 +331,7 @@ export function ClipPropertiesPanel() {
     setSpeed(selectedClip.id, []);
   };
 
-  // ============================================================
   // Keyframe helpers
-  // ============================================================
   const handleAddKeyframe = () => {
     if (!selectedClip) return;
     const kf: Keyframe = {
@@ -361,305 +348,191 @@ export function ClipPropertiesPanel() {
 
   if (!selectedClip || !parentTrack) {
     return (
-      <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] p-4 flex flex-col justify-center items-center text-center">
-        <span className="text-2xl mb-2">👈</span>
-        <p className="text-xs text-[var(--text-secondary)]">
-          Select a clip on the timeline to edit properties
-        </p>
+      <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 glass-card p-6 rounded-2xl">
+        <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl">
+          {tab === "effects" ? "✨" : tab === "audio" ? "🎵" : "🎛️"}
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-semibold text-white font-outfit">
+            {tab === "effects" ? "Effects Inspector" : tab === "audio" ? "Audio Inspector" : "Clip Properties"}
+          </h4>
+          <p className="text-xs text-gray-400 leading-relaxed max-w-[200px]">
+            Select a clip on the timeline to configure {tab === "effects" ? "visual effects & keyframes" : tab === "audio" ? "audio levels & speed" : "properties"}.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0 overflow-y-auto">
-      {/* Title */}
-      <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg-surface)]/20">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-          Creative Tools
-        </span>
+    <div className="w-full bg-[#0d0e17]/80 flex flex-col shrink-0 overflow-y-auto space-y-5 text-xs text-gray-200">
+      {/* Title & Delete Header */}
+      <div className="p-3.5 glass-card rounded-2xl border border-white/10 flex justify-between items-center">
+        <div className="space-y-0.5">
+          <span className="text-xs font-bold text-white font-outfit tracking-wide uppercase">
+            {tab === "effects" ? "Visual Effects" : tab === "audio" ? "Audio & Speed" : "Clip Properties"}
+          </span>
+          <p className="text-[10px] text-gray-400 font-mono">
+            ID: {selectedClip.id.slice(0, 8)} • {duration.toFixed(1)}s
+          </p>
+        </div>
         <button
           onClick={handleDelete}
-          className="text-xs text-[var(--danger)] hover:text-red-400 font-medium transition-colors"
+          className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors"
         >
           Delete
         </button>
       </div>
 
-      <div className="p-4 space-y-5">
-        {/* ============================================================
-            Section 1: Timeline Info & Position Inputs
-            ============================================================ */}
-        <div className="space-y-2">
-          <label className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
-            Timeline Info & Position
-          </label>
-          <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-3">
-            <div className="text-xs space-y-1.5 font-mono text-[var(--text-primary)] bg-[var(--bg-panel)] p-2 rounded border border-[var(--border)]">
-              <div>Duration: {duration.toFixed(2)}s</div>
-              <div>Playhead Offset: {clipRelativePlayhead.toFixed(2)}s</div>
-            </div>
+      {/* ============================================================
+          TAB MODE: EFFECTS (Visual Filters, Keyframes, AI Video)
+          ============================================================ */}
+      {tab === "effects" && (
+        <>
+          {/* Visual Filters & Color Grading */}
+          <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+            <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit block">
+              Color Grading & Filters
+            </label>
 
-            {/* Editable start time */}
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="text-[var(--text-secondary)]">Start Time:</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={Number(selectedClip.startTime.toFixed(2))}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (!isNaN(val) && val >= 0) {
-                      useEditorStore.getState().moveClip(selectedClip!.id, val, parentTrack!.id);
-                    }
-                  }}
-                  className="w-20 px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border)] font-mono text-right text-white focus:outline-none focus:border-[var(--accent)]"
-                />
-                <span className="text-[10px] text-[var(--text-muted)]">s</span>
-              </div>
-            </div>
-
-            {/* Editable Track (Move Clip) */}
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="text-[var(--text-secondary)]">Move to Track:</span>
-              <select
-                value={parentTrack!.id}
-                onChange={(e) => {
-                  useEditorStore.getState().moveClip(selectedClip!.id, selectedClip!.startTime, e.target.value);
-                }}
-                className="px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border)] text-white focus:outline-none text-[10px] max-w-[120px] truncate"
+            {/* Filter buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleAddFilter("brightness")}
+                className="py-2 px-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
               >
-                {project.tracks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.type.toUpperCase()} ({t.id})
-                  </option>
-                ))}
-              </select>
+                + Brightness
+              </button>
+              <button
+                onClick={() => handleAddFilter("contrast")}
+                className="py-2 px-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+              >
+                + Contrast
+              </button>
+              <button
+                onClick={() => handleAddFilter("saturation")}
+                className="py-2 px-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+              >
+                + Saturation
+              </button>
+              <button
+                onClick={() => handleAddFilter("lut")}
+                className="py-2 px-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+              >
+                + LUT Preset
+              </button>
             </div>
-          </div>
-        </div>
 
-        {/* ============================================================
-            Section 2: Speed Ramping
-            ============================================================ */}
-        {(isVideo || isAudio) && (
-          <div className="space-y-2">
-            <h3 className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
-              Clip Speed
-            </h3>
-            <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-3">
-              <div className="flex gap-1.5 justify-between">
-                <button
-                  onClick={() => handleSetConstantSpeed(0.5)}
-                  className="flex-1 py-1 text-[10px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
+            {/* Active filters list */}
+            <div className="space-y-2.5 pt-2">
+              {selectedClip.filters?.map((filter, index) => (
+                <div
+                  key={index}
+                  className="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs space-y-2"
                 >
-                  0.5x Slow
-                </button>
-                <button
-                  onClick={() => handleSetConstantSpeed(1.0)}
-                  className="flex-1 py-1 text-[10px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
-                >
-                  1.0x Normal
-                </button>
-                <button
-                  onClick={() => handleSetConstantSpeed(2.0)}
-                  className="flex-1 py-1 text-[10px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
-                >
-                  2.0x Fast
-                </button>
-              </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-xs text-white uppercase font-outfit">
+                      {filter.type}
+                    </span>
+                    <button
+                      onClick={() => removeFilter(selectedClip!.id, index)}
+                      className="text-[10px] text-red-400 hover:text-red-300 font-bold"
+                    >
+                      Remove
+                    </button>
+                  </div>
 
-              <div className="flex justify-between gap-2">
-                <button
-                  onClick={handleAddSpeedRamp}
-                  className="flex-1 py-1 text-[10px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded text-white"
-                >
-                  Set Speed Ramp
-                </button>
-                <button
-                  onClick={handleClearSpeedRamp}
-                  className="px-2 py-1 text-[10px] bg-[var(--bg-panel)] border border-[var(--border)] rounded text-[var(--text-secondary)]"
-                >
-                  Reset
-                </button>
-              </div>
-
-              {selectedClip.speed?.points && selectedClip.speed.points.length > 0 && (
-                <div className="text-[10px] font-mono text-[var(--text-secondary)] space-y-0.5 pt-1">
-                  <div className="font-bold">Speed points:</div>
-                  {selectedClip.speed.points.map((p, idx) => (
-                    <div key={idx}>
-                      · Src Time: {p.time.toFixed(1)}s → Speed: {p.speed}x
+                  {filter.type === "lut" ? (
+                    <select
+                      value={filter.lutId ?? "warm"}
+                      onChange={(e) => {
+                        updateTextProperties(selectedClip!.id, {
+                          filters: selectedClip!.filters?.map((f, i) =>
+                            i === index ? { ...f, lutId: e.target.value } : f
+                          ),
+                        });
+                      }}
+                      className="w-full h-8 px-2.5 rounded-lg bg-white/[0.08] border border-white/10 text-xs text-white focus:outline-none"
+                    >
+                      <option value="warm">Warm Multiplier</option>
+                      <option value="cool">Cool Blue Tint</option>
+                      <option value="vintage">Vintage Sepia</option>
+                      <option value="bw">High Contrast B&W</option>
+                    </select>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] text-gray-300">
+                        <span>Intensity</span>
+                        <span className="font-mono text-white font-semibold">{(filter.value * 100).toFixed(0)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-1"
+                        max="1"
+                        step="0.05"
+                        value={filter.value}
+                        onChange={(e) =>
+                          updateFilter(selectedClip!.id, index, Number(e.target.value))
+                        }
+                        className="w-full h-1.5 accent-purple-500 bg-white/10 rounded-lg cursor-pointer"
+                      />
                     </div>
-                  ))}
+                  )}
+                </div>
+              ))}
+
+              {(!selectedClip.filters || selectedClip.filters.length === 0) && (
+                <div className="text-center text-xs text-gray-500 py-2">
+                  No active filters or LUTs applied
                 </div>
               )}
             </div>
           </div>
-        )}
 
-        {/* ============================================================
-            Section 3: Composable Filters & LUT Presets
-            ============================================================ */}
-        {(isVideo || isText) && (
-          <div className="space-y-2">
-            <h3 className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
-              Visual Filters & LUTs
-            </h3>
-            <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-3">
-              {/* Add filter bar */}
-              <div className="flex justify-between gap-1">
-                <button
-                  onClick={() => handleAddFilter("brightness")}
-                  className="flex-1 py-1 text-[9px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
-                >
-                  + Brightness
-                </button>
-                <button
-                  onClick={() => handleAddFilter("contrast")}
-                  className="flex-1 py-1 text-[9px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
-                >
-                  + Contrast
-                </button>
-                <button
-                  onClick={() => handleAddFilter("saturation")}
-                  className="flex-1 py-1 text-[9px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
-                >
-                  + Saturation
-                </button>
-                <button
-                  onClick={() => handleAddFilter("lut")}
-                  className="flex-1 py-1 text-[9px] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white"
-                >
-                  + LUT
-                </button>
-              </div>
-
-              {/* Active filters list */}
-              <div className="space-y-3 pt-1">
-                {selectedClip.filters?.map((filter, index) => (
-                  <div
-                    key={index}
-                    className="p-2 bg-[var(--bg-panel)] rounded border border-[var(--border)] text-xs space-y-1.5"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-[10px] uppercase text-[var(--text-primary)]">
-                        {filter.type}
-                      </span>
-                      <button
-                        onClick={() => removeFilter(selectedClip!.id, index)}
-                        className="text-[9px] text-[var(--danger)] hover:text-red-400 font-bold"
-                      >
-                        REMOVE
-                      </button>
-                    </div>
-
-                    {filter.type === "lut" ? (
-                      <select
-                        value={filter.lutId ?? "warm"}
-                        onChange={(e) => {
-                          // Mutate filter using helper by modifying properties
-                          updateTextProperties(selectedClip!.id, {
-                            filters: selectedClip!.filters?.map((f, i) =>
-                              i === index ? { ...f, lutId: e.target.value } : f
-                            ),
-                          });
-                        }}
-                        className="w-full text-[10px] bg-[var(--bg-surface)] border border-[var(--border)] p-1 rounded text-white focus:outline-none"
-                      >
-                        <option value="warm">Warm Multiplier</option>
-                        <option value="cool">Cool Blue Tint</option>
-                        <option value="vintage">Vintage Sepia</option>
-                        <option value="bw">High Contrast B&W</option>
-                      </select>
-                    ) : (
-                      <div className="space-y-0.5">
-                        <div className="flex justify-between text-[10px] font-mono text-[var(--text-secondary)]">
-                          <span>Adjust</span>
-                          <span>{(filter.value * 100).toFixed(0)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="-1"
-                          max="1"
-                          step="0.05"
-                          value={filter.value}
-                          onChange={(e) =>
-                            updateFilter(selectedClip!.id, index, Number(e.target.value))
-                          }
-                          className="w-full h-1 accent-[var(--accent)]"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {(!selectedClip.filters || selectedClip.filters.length === 0) && (
-                  <div className="text-center text-[10px] text-[var(--text-muted)] py-2">
-                    No active filters or LUTs
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            Section 4: Keyframe Animation Tracks
-            ============================================================ */}
-        {(isVideo || isText) && (
-          <div className="space-y-2">
-            <h3 className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
+          {/* Keyframe Animations */}
+          <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+            <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit block">
               Keyframe Animations
-            </h3>
-            <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-3">
-              {/* Select track property */}
+            </label>
+
+            <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[10px] text-[var(--text-secondary)]">Target Property</label>
+                <label className="text-xs text-gray-300">Target Property</label>
                 <select
                   value={selectedProperty}
                   onChange={(e) => setSelectedProperty(e.target.value as "position.x" | "position.y" | "scale" | "rotation" | "opacity")}
-                  className="w-full text-xs bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white"
+                  className="w-full h-9 px-3 rounded-xl bg-white/[0.08] border border-white/10 text-xs text-white focus:outline-none"
                 >
                   <option value="position.x">Position X</option>
                   <option value="position.y">Position Y</option>
                   <option value="scale">Scale Multiplier</option>
                   <option value="rotation">Rotation Angle</option>
-                  <option value="opacity">Opacity Layer</option>
+                  <option value="opacity">Opacity</option>
                 </select>
               </div>
 
-              {/* Slider for value */}
               <div className="space-y-1">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-[var(--text-secondary)]">Value</span>
-                  <span>{kfValue.toFixed(2)}</span>
+                <div className="flex justify-between text-xs text-gray-300">
+                  <span>Value</span>
+                  <span className="font-mono text-white font-semibold">{kfValue.toFixed(2)}</span>
                 </div>
                 <input
                   type="range"
-                  min={
-                    selectedProperty === "rotation"
-                      ? -180
-                      : selectedProperty === "scale"
-                        ? 0.1
-                        : 0.0
-                  }
+                  min={selectedProperty === "rotation" ? -180 : selectedProperty === "scale" ? 0.1 : 0.0}
                   max={selectedProperty === "rotation" ? 180 : selectedProperty === "scale" ? 3.0 : 1.0}
                   step="0.01"
                   value={kfValue}
                   onChange={(e) => setKfValue(Number(e.target.value))}
-                  className="w-full h-1 accent-[var(--accent)]"
+                  className="w-full h-1.5 accent-purple-500 bg-white/10 rounded-lg cursor-pointer"
                 />
               </div>
 
-              {/* Select Easing */}
               <div className="space-y-1">
-                <label className="text-[10px] text-[var(--text-secondary)]">Easing Transition</label>
+                <label className="text-xs text-gray-300">Easing Transition</label>
                 <select
                   value={kfEasing}
                   onChange={(e) => setKfEasing(e.target.value as Keyframe["easing"])}
-                  className="w-full text-xs bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white"
+                  className="w-full h-9 px-3 rounded-xl bg-white/[0.08] border border-white/10 text-xs text-white focus:outline-none"
                 >
                   <option value="linear">Linear</option>
                   <option value="easeIn">Ease In</option>
@@ -668,187 +541,218 @@ export function ClipPropertiesPanel() {
                 </select>
               </div>
 
-              {/* Add Keyframe trigger */}
               <button
                 onClick={handleAddKeyframe}
-                className="w-full py-1.5 text-xs font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded text-white"
+                className="w-full py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-500/30 transition-all cursor-pointer"
               >
-                Add Keyframe at playhead
+                + Add Keyframe at Playhead
               </button>
 
-              {/* List keyframes on active track */}
-              <div className="space-y-1 pt-1 border-t border-[var(--border)]">
-                <div className="text-[10px] text-[var(--text-secondary)] font-bold mb-1">
-                  Active keyframes:
-                </div>
+              <div className="space-y-1.5 pt-2 border-t border-white/10">
+                <label className="text-[10px] text-gray-400 font-bold uppercase">Active Keyframes</label>
                 {currentTrackKeyframes.map((kf, index) => (
                   <div
                     key={index}
-                    className="flex justify-between items-center text-[10px] font-mono p-1 bg-[var(--bg-panel)] rounded border border-[var(--border)]"
+                    className="flex justify-between items-center text-xs font-mono p-2 bg-white/[0.04] rounded-xl border border-white/10"
                   >
-                    <span>
-                      Time: {kf.time.toFixed(2)}s → Value: {kf.value.toFixed(2)} ({kf.easing})
-                    </span>
+                    <span>{kf.time.toFixed(2)}s → {kf.value.toFixed(2)} ({kf.easing})</span>
                     <button
                       onClick={() => removeKeyframe(selectedClip!.id, selectedProperty, kf.time)}
-                      className="text-[9px] text-[var(--danger)] hover:text-red-400"
+                      className="text-red-400 hover:text-red-300 text-xs font-bold"
                     >
                       ✕
                     </button>
                   </div>
                 ))}
-
                 {currentTrackKeyframes.length === 0 && (
-                  <div className="text-center text-[10px] text-[var(--text-muted)] py-1">
-                    No keyframes set
-                  </div>
+                  <div className="text-center text-xs text-gray-500 py-1">No keyframes on this property</div>
                 )}
               </div>
             </div>
           </div>
-        )}
-        {/* ============================================================
-            Section 5: AI-Assisted Editing Tools
-            ============================================================ */}
-        {(isVideo || isAudio) && (
-          <div className="space-y-2">
-            <h3 className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
-              AI-Assisted Editing
-            </h3>
-            <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-4">
-              
-              {/* Scene Detection / Auto-Split */}
-              {isVideo && (
-                <div className="space-y-1.5 pb-3 border-b border-[var(--border)]/60">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-white">Scene Cut Detection</span>
-                    <span className="text-[9px] text-[var(--text-secondary)]">CPU-only</span>
-                  </div>
-                  <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-                    Auto-split clip into separate segments at editing cut boundaries.
-                  </p>
-                  
-                  {sceneStatus === "processing" || sceneStatus === "queued" ? (
-                    <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--accent)]">
-                      <div className="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-                      <span>Processing cuts... {sceneProgress}%</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleRunSceneDetection}
-                      className="w-full py-1 text-[10px] font-semibold bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white transition-colors"
-                    >
-                      Split Clip by Scenes
-                    </button>
-                  )}
-                  {sceneError && (
-                    <div className="text-[9px] text-[var(--danger)]">⚠️ {sceneError}</div>
-                  )}
-                </div>
-              )}
 
-              {/* Auto Reframe */}
-              {isVideo && (
-                <div className="space-y-1.5 pb-3 border-b border-[var(--border)]/60">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-white">Auto Reframe</span>
-                    <span className="text-[9px] text-[var(--text-secondary)]">Keyframed Pan</span>
-                  </div>
-                  <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-                    Crop and pan clip dynamically to fit portrait or square ratios.
-                  </p>
-                  
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={targetRatio}
-                      onChange={(e) => setTargetRatio(e.target.value as "9:16" | "1:1" | "4:5" | "16:9")}
-                      disabled={reframeStatus === "processing" || reframeStatus === "queued"}
-                      className="text-[10px] bg-[var(--bg-panel)] border border-[var(--border)] p-1 rounded text-white focus:outline-none flex-1"
-                    >
-                      <option value="9:16">Portrait 9:16</option>
-                      <option value="1:1">Square 1:1</option>
-                      <option value="4:5">Portrait 4:5</option>
-                      <option value="16:9">Landscape 16:9</option>
-                    </select>
+          {/* AI Video Tools */}
+          {isVideo && (
+            <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+              <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit block">
+                AI Video Cut & Reframe
+              </label>
 
-                    {reframeStatus === "processing" || reframeStatus === "queued" ? (
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--accent)] min-w-[100px]">
-                        <div className="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-                        <span>Reframing... {reframeProgress}%</span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={handleRunAutoReframe}
-                        className="py-1 px-3 text-[10px] font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded text-white transition-colors"
-                      >
-                        Reframe
-                      </button>
-                    )}
-                  </div>
-                  {reframeError && (
-                    <div className="text-[9px] text-[var(--danger)]">⚠️ {reframeError}</div>
-                  )}
-                </div>
-              )}
-
-              {/* Speech Enhancement / Denoising */}
-              <div className="space-y-1.5">
+              {/* Scene Cut Detection */}
+              <div className="space-y-2 pb-3 border-b border-white/10">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="font-semibold text-white">AI Speech Enhancer</span>
-                  <span className="text-[9px] text-[var(--text-secondary)]">DeepFilterNet3</span>
+                  <span className="font-semibold text-white font-outfit">Scene Cut Detection</span>
+                  <span className="text-[10px] text-gray-400">Auto Split</span>
                 </div>
-                <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-                  Suppress background noise and isolate spoken voices non-destructively.
-                </p>
-
-                {selectedClip.denoisedSourceId ? (
-                  <div className="space-y-2 bg-[var(--bg-panel)] p-2 rounded border border-[var(--border)] text-[10px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[var(--text-secondary)]">Noise Reduction:</span>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedClip.isDenoised || false}
-                          onChange={(e) => setClipDenoised(selectedClip!.id, e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-7 h-4 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[var(--accent)]"></div>
-                      </label>
-                    </div>
-
-                    <div className="text-[9px] text-[var(--text-muted)] bg-[var(--bg-surface)] p-1 rounded font-mono truncate">
-                      File: {assets[selectedClip.sourceId]?.fileName || "AI Enhanced Audio"}
-                    </div>
-
-                    <div className="flex justify-between items-center pt-1 border-t border-[var(--border)]/40 text-[9px] text-[var(--text-muted)]">
-                      <span>Before / After Switcher:</span>
-                      <span className="font-semibold text-white uppercase font-mono">
-                        {selectedClip.isDenoised ? "Enhanced" : "Original"}
-                      </span>
-                    </div>
-                  </div>
-                ) : denoiseStatus === "processing" || denoiseStatus === "queued" ? (
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--accent)]">
-                    <div className="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-                    <span>Denoising... {denoiseProgress}%</span>
+                {sceneStatus === "processing" || sceneStatus === "queued" ? (
+                  <div className="flex items-center gap-2 text-xs font-mono text-purple-400">
+                    <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                    <span>Processing cuts... {sceneProgress}%</span>
                   </div>
                 ) : (
                   <button
-                    onClick={handleRunNoiseReduction}
-                    className="w-full py-1 text-[10px] font-semibold bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded text-white transition-colors"
+                    onClick={handleRunSceneDetection}
+                    className="w-full py-2 text-xs font-semibold bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl text-gray-200 transition-colors"
                   >
-                    Enhance Speech
+                    Auto Split Clip by Scenes
                   </button>
-                )}
-                {denoiseError && (
-                  <div className="text-[9px] text-[var(--danger)]">⚠️ {denoiseError}</div>
                 )}
               </div>
 
+              {/* Auto Reframe */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-white font-outfit">Auto Reframe</span>
+                  <span className="text-[10px] text-gray-400">Aspect Crop</span>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={targetRatio}
+                    onChange={(e) => setTargetRatio(e.target.value as "9:16" | "1:1" | "4:5" | "16:9")}
+                    className="flex-1 h-9 px-3 rounded-xl bg-white/[0.08] border border-white/10 text-xs text-white focus:outline-none"
+                  >
+                    <option value="9:16">Portrait 9:16</option>
+                    <option value="1:1">Square 1:1</option>
+                    <option value="4:5">Portrait 4:5</option>
+                    <option value="16:9">Landscape 16:9</option>
+                  </select>
+                  <button
+                    onClick={handleRunAutoReframe}
+                    className="px-4 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-500 rounded-xl text-white transition-colors"
+                  >
+                    Reframe
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ============================================================
+          TAB MODE: AUDIO (Volume, Speed Ramping, AI Denoise)
+          ============================================================ */}
+      {(tab === "audio" || tab === "properties") && (
+        <>
+          {/* Audio Levels & Track Volume */}
+          <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+            <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit block">
+              Audio Volume & Controls
+            </label>
+
+            <div className="space-y-2.5">
+              <div className="flex justify-between text-xs text-gray-300 font-medium">
+                <span>Track Volume</span>
+                <span className="font-mono text-white font-semibold">
+                  {((parentTrack?.volume ?? 1.0) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={parentTrack?.volume ?? 1.0}
+                onChange={(e) => setTrackVolume(parentTrack!.id, Number(e.target.value))}
+                className="w-full h-1.5 accent-purple-500 bg-white/10 rounded-lg cursor-pointer"
+              />
+
+              <button
+                onClick={() => setTrackMuted(parentTrack!.id, !parentTrack?.muted)}
+                className={`w-full py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                  parentTrack?.muted
+                    ? "bg-red-500/20 border-red-500/40 text-red-300"
+                    : "bg-white/[0.06] hover:bg-white/10 border-white/10 text-gray-200"
+                }`}
+              >
+                {parentTrack?.muted ? "🔇 UNMUTE AUDIO TRACK" : "🔊 MUTE AUDIO TRACK"}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Clip Speed & Ramping */}
+          <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+            <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit block">
+              Playback Speed & Ramping
+            </label>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleSetConstantSpeed(0.5)}
+                className="py-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+              >
+                0.5x Slow
+              </button>
+              <button
+                onClick={() => handleSetConstantSpeed(1.0)}
+                className="py-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+              >
+                1.0x Normal
+              </button>
+              <button
+                onClick={() => handleSetConstantSpeed(2.0)}
+                className="py-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+              >
+                2.0x Fast
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleAddSpeedRamp}
+                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+              >
+                Set Speed Ramp
+              </button>
+              <button
+                onClick={handleClearSpeedRamp}
+                className="px-4 py-2 text-xs font-semibold bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          {/* AI Speech Enhancer */}
+          <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+            <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit block">
+              AI Speech Enhancer
+            </label>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Isolate vocals and suppress background noise using DeepFilterNet3 AI model.
+            </p>
+
+            {selectedClip.denoisedSourceId ? (
+              <div className="p-3 bg-white/[0.04] rounded-xl border border-white/10 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300 font-medium">Enhancer Toggle:</span>
+                  <input
+                    type="checkbox"
+                    checked={selectedClip.isDenoised || false}
+                    onChange={(e) => setClipDenoised(selectedClip!.id, e.target.checked)}
+                    className="w-4 h-4 accent-purple-500 cursor-pointer"
+                  />
+                </div>
+                <div className="text-[10px] text-purple-300 font-mono">
+                  Active: {selectedClip.isDenoised ? "Enhanced Audio" : "Original Source"}
+                </div>
+              </div>
+            ) : denoiseStatus === "processing" || denoiseStatus === "queued" ? (
+              <div className="flex items-center gap-2 text-xs font-mono text-purple-400">
+                <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                <span>Enhancing speech... {denoiseProgress}%</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleRunNoiseReduction}
+                className="w-full py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+              >
+                Enhance Voice Clarity
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

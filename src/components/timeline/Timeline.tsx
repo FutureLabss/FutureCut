@@ -285,6 +285,39 @@ export function Timeline() {
           </div>
         </div>
       </div>
+
+      {/* Bottom-right timeline zoom control matching stitch/mainScreen.png */}
+      <div className="flex items-center justify-end gap-2 px-4 py-2 border-t border-white/10 bg-[#0d0e17] shrink-0 text-xs text-gray-400">
+        <span className="font-medium">Zoom</span>
+        <button
+          onClick={() => setZoom(Math.max(10, timelineZoom - 20))}
+          className="hover:text-white transition-colors"
+          title="Zoom Out"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35M8 11h6" />
+          </svg>
+        </button>
+        <input
+          type="range"
+          min="10"
+          max="500"
+          value={timelineZoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="w-24 h-1 accent-purple-500 cursor-pointer"
+        />
+        <button
+          onClick={() => setZoom(Math.min(500, timelineZoom + 20))}
+          className="hover:text-white transition-colors"
+          title="Zoom In"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

@@ -193,35 +193,30 @@ export function CaptionPanel() {
   };
 
   return (
-    <div className="w-full lg:w-[300px] bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0 overflow-hidden h-full">
-      {/* Title */}
-      <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg-surface)]/20 shrink-0">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-          AI Auto Captions
-        </span>
-      </div>
-
+    <div className="w-full bg-[#0d0e17]/80 flex flex-col shrink-0 overflow-hidden h-full">
       {/* Main Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto space-y-5 text-xs text-gray-200">
         {error && (
-          <div className="p-3 bg-[var(--danger)]/15 border border-[var(--danger)]/30 rounded text-xs text-[var(--danger)]">
+          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400">
             ⚠️ {error}
           </div>
         )}
 
-        {/* Generate / Loading state */}
+        {/* Generate / Loading state when no captions present yet */}
         {captions.length === 0 && !status && (
-          <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-            <div className="text-4xl">💬</div>
+          <div className="flex flex-col items-center justify-center py-8 text-center space-y-4 glass-card p-6 rounded-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl">
+              💬
+            </div>
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold text-[var(--text-primary)]">No Captions Yet</h4>
-              <p className="text-xs text-[var(--text-secondary)] max-w-[200px]">
-                Transcribe voice track into styleable text overlays instantly.
+              <h4 className="text-sm font-semibold text-white font-outfit">Auto Captions Generator</h4>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Transcribe voice track into styleable text overlays automatically.
               </p>
             </div>
             <button
               onClick={handleGenerateCaptions}
-              className="px-4 py-2 text-xs font-semibold rounded bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors shadow-lg"
+              className="w-full py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-500/30 transition-all cursor-pointer"
             >
               Generate Auto-Captions
             </button>
@@ -229,7 +224,7 @@ export function CaptionPanel() {
         )}
 
         {status && (
-          <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+          <div className="flex flex-col items-center justify-center py-10 text-center space-y-4 glass-card p-6 rounded-2xl">
             <div className="relative w-16 h-16">
               <svg className="w-16 h-16 -rotate-90" viewBox="0 0 80 80">
                 <circle
@@ -245,7 +240,7 @@ export function CaptionPanel() {
                   cy="40"
                   r="36"
                   fill="none"
-                  stroke="var(--accent)"
+                  stroke="#a855f7"
                   strokeWidth="4"
                   strokeLinecap="round"
                   strokeDasharray={2 * Math.PI * 36}
@@ -258,146 +253,143 @@ export function CaptionPanel() {
               </div>
             </div>
             <div className="space-y-0.5">
-              <span className="text-xs font-semibold text-white">Transcribing Audio…</span>
-              <p className="text-[10px] text-[var(--text-secondary)]">Running WhisperX / Deepgram Nova-2</p>
+              <span className="text-xs font-semibold text-white font-outfit">Transcribing Audio…</span>
+              <p className="text-[10px] text-gray-400">Running WhisperX AI model</p>
             </div>
           </div>
         )}
 
-        {/* Captions loaded - display styling & list */}
-        {captions.length > 0 && !status && (
-          <div className="space-y-5">
-            {/* Global Styling Inspector */}
-            <div className="space-y-2">
-              <label className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
-                Captions Styling
-              </label>
-              <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border)] space-y-3 text-xs">
-                {/* Font selection */}
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)]">Font Family:</span>
-                  <select
-                    value={fontFamily}
-                    onChange={(e) => handleUpdateGlobalStyling("fontFamily", e.target.value)}
-                    className="bg-[var(--bg-panel)] border border-[var(--border)] rounded px-1.5 py-0.5 text-white"
-                  >
-                    <option value="Outfit">Outfit</option>
-                    <option value="Inter">Inter</option>
-                    <option value="sans-serif">System Sans</option>
-                  </select>
-                </div>
-
-                {/* Font Size */}
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)]">Font Size:</span>
-                  <input
-                    type="number"
-                    min="10"
-                    max="72"
-                    value={fontSize}
-                    onChange={(e) => handleUpdateGlobalStyling("fontSize", e.target.value)}
-                    className="w-16 bg-[var(--bg-panel)] border border-[var(--border)] rounded px-1.5 py-0.5 text-white text-right font-mono"
-                  />
-                </div>
-
-                {/* Color */}
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)]">Text Color:</span>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => handleUpdateGlobalStyling("color", e.target.value)}
-                      className="w-6 h-5 bg-transparent border-0 cursor-pointer focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={color}
-                      onChange={(e) => handleUpdateGlobalStyling("color", e.target.value)}
-                      className="w-20 bg-[var(--bg-panel)] border border-[var(--border)] rounded px-1.5 py-0.5 text-white text-center font-mono uppercase"
-                    />
-                  </div>
-                </div>
-
-                {/* Height Position slider */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-[var(--text-secondary)]">Vertical Position (Y)</span>
-                    <span className="font-mono">{(posY * 100).toFixed(0)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="0.9"
-                    step="0.02"
-                    value={posY}
-                    onChange={(e) => handleUpdateGlobalStyling("posY", e.target.value)}
-                    className="w-full h-1 accent-[var(--accent)]"
-                  />
-                </div>
+        {/* Captions loaded or Inspector controls active */}
+        <div className="space-y-5">
+          {/* Captions Styling Controls matching stitch/mainScreen.png */}
+          <div className="space-y-3 glass-card p-4 rounded-2xl border border-white/10">
+            {/* Font Size */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-gray-300 font-medium">
+                <span>Font Size</span>
+                <span className="font-mono text-white font-semibold">{fontSize}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="12"
+                  max="60"
+                  value={fontSize}
+                  onChange={(e) => handleUpdateGlobalStyling("fontSize", e.target.value)}
+                  className="flex-1 h-1.5 accent-purple-500 bg-white/10 rounded-lg cursor-pointer"
+                />
               </div>
             </div>
 
-            {/* SRT/VTT export actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExportSubtitle("srt")}
-                className="flex-1 py-1.5 text-[10px] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded font-semibold text-white transition-colors"
-              >
-                📥 Export SRT
-              </button>
-              <button
-                onClick={() => handleExportSubtitle("vtt")}
-                className="flex-1 py-1.5 text-[10px] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded font-semibold text-white transition-colors"
-              >
-                📥 Export VTT
-              </button>
+            {/* Color & Font Family */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-300 font-medium block">Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => handleUpdateGlobalStyling("color", e.target.value)}
+                    className="w-10 h-9 rounded-xl bg-purple-600 border border-white/20 cursor-pointer p-0.5"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-300 font-medium block">Font Family</label>
+                <select
+                  value={fontFamily}
+                  onChange={(e) => handleUpdateGlobalStyling("fontFamily", e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl bg-white/[0.08] border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500 font-outfit"
+                >
+                  <option value="Outfit">Outfit</option>
+                  <option value="Inter">Inter</option>
+                  <option value="sans-serif">System Sans</option>
+                </select>
+              </div>
             </div>
 
-            {/* Transcript Sync list */}
-            <div className="space-y-2">
-              <label className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold">
-                Transcript Segments
-              </label>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                {captions.map((clip) => {
+            {/* Vertical Position */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex justify-between text-xs text-gray-300 font-medium">
+                <span>Vertical Position</span>
+                <span className="font-mono text-white font-semibold">{(posY * 100 - 80).toFixed(0)}</span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="0.9"
+                step="0.02"
+                value={posY}
+                onChange={(e) => handleUpdateGlobalStyling("posY", e.target.value)}
+                className="w-full h-1.5 accent-purple-500 bg-white/10 rounded-lg cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Transcript Segments matching stitch/mainScreen.png */}
+          <div className="space-y-2.5">
+            <label className="text-[11px] font-bold text-gray-400 tracking-wider uppercase font-outfit">
+              Transcript Segments
+            </label>
+
+            <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+              {captions.length > 0 ? (
+                captions.map((clip) => {
                   const isActive = playheadTime >= clip.startTime && playheadTime <= clipEndTime(clip);
                   return (
                     <div
                       key={clip.id}
                       onClick={() => setPlayhead(clip.startTime)}
-                      className={`p-2.5 rounded border transition-all cursor-pointer text-xs space-y-1.5 ${
+                      className={`p-3 rounded-xl border transition-all cursor-pointer text-xs space-y-1 ${
                         isActive
-                          ? "bg-[var(--bg-hover)] border-[var(--accent)] shadow-md"
-                          : "bg-[var(--bg-panel)] border-[var(--border)] hover:bg-[var(--bg-hover)]/40"
+                          ? "bg-purple-900/30 border-purple-500/60 shadow-lg shadow-purple-500/10"
+                          : "bg-white/[0.04] border-white/10 hover:bg-white/[0.08]"
                       }`}
                     >
-                      <div className="flex justify-between items-center text-[10px] font-mono text-[var(--text-secondary)]">
-                        <span>{formatTimecode(clip.startTime, 30)}</span>
-                        {isActive && <span className="text-[var(--accent)] font-bold">ACTIVE</span>}
-                      </div>
                       <input
                         type="text"
                         value={clip.text || ""}
-                        onClick={(e) => e.stopPropagation()} // Prevent seek when clicking input
+                        onClick={(e) => e.stopPropagation()}
                         onChange={(e) => updateTextProperties(clip.id, { text: e.target.value })}
-                        className="w-full bg-transparent border-0 border-b border-transparent hover:border-[var(--border)] focus:border-[var(--accent)] text-white focus:outline-none py-0.5 text-xs"
+                        className="w-full bg-transparent border-0 text-white font-medium focus:outline-none py-0.5 text-sm"
                       />
                     </div>
                   );
-                })}
-              </div>
+                })
+              ) : (
+                /* Default sample transcript segments if none generated yet, matching stitch/mainScreen.png */
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm font-medium text-gray-200">
+                    Welcome to FutureCut, the
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm font-medium text-gray-200">
+                    advanced web video editor.
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm font-medium text-gray-200">
+                    Welcome to FutureCut, the
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
 
-            {/* Clear / Re-run */}
+          {/* Export Actions */}
+          <div className="flex gap-2 pt-2">
             <button
-              onClick={handleGenerateCaptions}
-              className="w-full py-1.5 text-[10px] text-[var(--text-muted)] hover:text-white transition-colors"
+              onClick={() => handleExportSubtitle("srt")}
+              className="flex-1 py-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
             >
-              🔄 Re-run Auto-Transcription
+              📥 Export SRT
+            </button>
+            <button
+              onClick={() => handleExportSubtitle("vtt")}
+              className="flex-1 py-2 text-xs bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl font-semibold text-gray-200 transition-colors"
+            >
+              📥 Export VTT
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,56 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
-   FutureCut — Editor Design Tokens (dark theme)
-   Clean, dark-themed interface typical for video editors.
-   Reduces eye strain against bright video content.
+   FutureCut — Modern Dark Glassmorphic Design System Tokens
    ============================================================ */
 
 :root {
   /* Surface hierarchy (darkest to lightest) */
-  --bg-app: #0d0d0f;
-  --bg-panel: #151518;
-  --bg-surface: #1c1c21;
-  --bg-elevated: #252529;
-  --bg-hover: #2a2a30;
-  --bg-active: #333339;
+  --bg-app: #090a0f;
+  --bg-panel: rgba(18, 20, 29, 0.75);
+  --bg-surface: rgba(28, 31, 46, 0.6);
+  --bg-elevated: rgba(38, 42, 62, 0.7);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.14);
 
-  /* Accent */
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-muted: #4f46e5;
-  --accent-dim: rgba(99, 102, 241, 0.15);
+  /* Glassmorphism */
+  --glass-bg: rgba(20, 22, 34, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-purple: rgba(168, 85, 247, 0.4);
+  --glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+
+  /* Glowing Accents */
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --accent-muted: #9333ea;
+  --accent-dim: rgba(168, 85, 247, 0.2);
+  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
+  --accent-glow: 0 0 25px rgba(168, 85, 247, 0.45);
 
   /* Text */
-  --text-primary: #eeeef0;
-  --text-secondary: #9a9aa6;
-  --text-muted: #5f5f6e;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 
   /* Borders */
-  --border: #2a2a32;
-  --border-hover: #3a3a44;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.2);
 
   /* Timeline-specific */
-  --playhead: #ef4444;
-  --clip-bg: #2563eb;
-  --clip-bg-hover: #3b82f6;
-  --clip-selected: #6366f1;
-  --clip-handle: rgba(255, 255, 255, 0.7);
-  --ruler-text: #5f5f6e;
-  --ruler-mark: #2a2a32;
+  --playhead: #a855f7;
+  --clip-video: #3b82f6;
+  --clip-audio: #10b981;
+  --clip-text: #f59e0b;
+  --clip-selected: #a855f7;
+  --clip-handle: rgba(255, 255, 255, 0.85);
 
   /* Semantic */
   --success: #22c55e;
-  --warning: #eab308;
+  --warning: #f59e0b;
   --danger: #ef4444;
 
   /* Sizing */
-  --header-height: 48px;
-  --timeline-height: 200px;
+  --header-height: 52px;
+  --timeline-height: 220px;
   --track-height: 56px;
 
   /* Fonts */
-  --font-geist-sans: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-outfit: "Outfit", system-ui, -apple-system, sans-serif;
+  --font-geist-sans: "Inter", "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Roboto Mono, monospace;
 }
 
@@ -63,7 +70,7 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--bg-active) var(--bg-panel);
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 body {
@@ -75,19 +82,55 @@ body {
 }
 
 /* ============================================================
-   Scrollbar styling
+   Background Mesh & Glow Utility Classes
    ============================================================ */
+
+.bg-mesh-cosmic {
+  background-color: #07070d;
+  background-image: 
+    radial-gradient(at 10% 15%, rgba(139, 92, 246, 0.25) 0px, transparent 50%),
+    radial-gradient(at 90% 85%, rgba(192, 132, 252, 0.2) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(59, 130, 246, 0.15) 0px, transparent 70%),
+    radial-gradient(at 80% 10%, rgba(217, 70, 239, 0.18) 0px, transparent 50%);
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(168, 85, 247, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(168, 85, 247, 0.3);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
+}
+
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-panel);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-active);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.35);
 }
+

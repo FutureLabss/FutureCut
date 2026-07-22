@@ -4,9 +4,14 @@ import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FutureCut — Video Editor",
+  title: "FutureCut — Modern Video Editor",
   description:
-    "A browser-based video editor with trim, split, and export. No uploads, everything runs locally.",
+    "Browser-based video editor with AI tools, WebCodecs preview, and ffmpeg export.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.ico",
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({

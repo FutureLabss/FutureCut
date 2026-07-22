@@ -43,32 +43,48 @@ export function TransportControls() {
     setPlayhead(playheadTime + frameDuration);
   };
 
-  return (
-    <div className="flex items-center gap-4 mt-3 px-4 py-2 rounded-lg bg-[var(--bg-panel)] border border-[var(--border)]">
-      {/* Timecode */}
-      <div className="font-mono text-sm text-[var(--text-secondary)] min-w-[90px]">
-        {formatTimecode(playheadTime, project.fps)}
-      </div>
+  const timelineZoom = useUIStore((s) => s.timelineZoom);
+  const setZoom = useUIStore((s) => s.setZoom);
 
-      {/* Playback controls */}
+  return (
+    <div className="flex items-center justify-between gap-5 mt-4 px-5 py-2.5 rounded-2xl bg-[#121422]/90 backdrop-blur-xl border border-white/10 shadow-2xl z-10 max-w-2xl w-full">
+      {/* Playback Controls matching stitch/mainScreen.png */}
       <div className="flex items-center gap-1">
-        {/* Skip to start */}
+        {/* Play/Pause square button */}
         <button
-          onClick={() => setPlayhead(0)}
+          onClick={togglePlay}
           disabled={isDecoding}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Go to start"
+          className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-white flex items-center justify-center transition-all cursor-pointer disabled:opacity-30"
+          title={isDecoding ? "Preparing video…" : isPlaying ? "Pause (Space)" : "Play (Space)"}
+        >
+          {isPlaying ? (
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+
+        {/* Pause */}
+        <button
+          onClick={togglePlay}
+          disabled={isDecoding}
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30"
+          title="Pause"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
           </svg>
         </button>
 
-        {/* Step back one frame */}
+        {/* Step back */}
         <button
           onClick={handleStepBack}
           disabled={isDecoding}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30"
           title="Step back one frame"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -76,80 +92,65 @@ export function TransportControls() {
           </svg>
         </button>
 
-        {/* Play/Pause */}
+        {/* Loop / Reset */}
         <button
-          onClick={togglePlay}
+          onClick={() => setPlayhead(0)}
           disabled={isDecoding}
-          className="p-2 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title={isDecoding ? "Preparing video…" : isPlaying ? "Pause (Space)" : "Play (Space)"}
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30"
+          title="Restart from beginning"
         >
-          {isPlaying ? (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
 
-        {/* Step forward one frame */}
+        {/* Step forward */}
         <button
           onClick={handleStepForward}
           disabled={isDecoding}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30"
           title="Step forward one frame"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z" />
           </svg>
         </button>
-
-        {/* Skip to end */}
-        <button
-          onClick={() => setPlayhead(project.duration)}
-          disabled={isDecoding}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Go to end"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-          </svg>
-        </button>
       </div>
 
-      {/* Duration */}
-      <div className="font-mono text-sm text-[var(--text-muted)] min-w-[90px] text-right">
-        {formatTimecode(project.duration, project.fps)}
+      {/* Timecode display */}
+      <div className="font-mono text-base font-bold text-white tracking-wider">
+        {formatTimecode(playheadTime, project.fps)}
       </div>
 
-      {/* Separator */}
-      <div className="w-px h-5 bg-[var(--border)] mx-1" />
-
-      {/* Edit controls */}
-      <div className="flex items-center gap-1">
-        {/* Split */}
+      {/* Preview Zoom Controls */}
+      <div className="flex items-center gap-2 text-xs text-gray-400">
+        <span className="font-medium">Zoom</span>
         <button
-          onClick={handleSplit}
-          disabled={!selectedClipId}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Split at playhead (S)"
+          onClick={() => setZoom(Math.max(10, timelineZoom - 20))}
+          className="hover:text-white transition-colors"
+          title="Zoom out"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 3v18M5 12h14" strokeLinecap="round" />
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35M8 11h6" />
           </svg>
         </button>
-
-        {/* Delete */}
+        <input
+          type="range"
+          min="10"
+          max="500"
+          value={timelineZoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="w-20 h-1 accent-purple-500 cursor-pointer"
+        />
         <button
-          onClick={handleDelete}
-          disabled={!selectedClipId}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--danger)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          title="Delete clip (Delete)"
+          onClick={() => setZoom(Math.min(500, timelineZoom + 20))}
+          className="hover:text-white transition-colors"
+          title="Zoom in"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinecap="round" strokeLinejoin="round" />
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
           </svg>
         </button>
       </div>
