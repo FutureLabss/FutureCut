@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"projects" | "assets" | "templates" | "settings">("projects");
   const [searchQuery, setSearchQuery] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -147,95 +149,165 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen flex bg-[#090a0f] text-gray-100 font-sans overflow-hidden">
+      {/* Mobile Backdrop Overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[#0d0e17]/80 backdrop-blur-xl border-r border-white/10 flex flex-col shrink-0 select-none">
-        {/* Logo */}
-        <div className="p-6 flex items-center gap-3">
-          <img
-            src="/logo-icon.png"
-            alt="FutureCut Logo"
-            className="w-9 h-9 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.6)]"
-          />
-          <span className="text-xl font-bold text-white tracking-tight font-outfit">
-            FutureCut
-          </span>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 bg-[#0d0e17] md:bg-[#0d0e17]/80 backdrop-blur-xl border-r border-white/10 flex flex-col shrink-0 select-none transition-all duration-300 md:static md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${sidebarCollapsed ? "md:w-20" : "md:w-64"} w-64`}
+      >
+        {/* Logo & Collapse Header */}
+        <div className="p-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src="/logo-icon.png"
+              alt="FutureCut Logo"
+              className="w-9 h-9 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.6)] shrink-0"
+            />
+            {!sidebarCollapsed && (
+              <span className="text-xl font-bold text-white tracking-tight font-outfit truncate">
+                FutureCut
+              </span>
+            )}
+          </div>
+
+          {/* Collapse / Close Button */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setSidebarCollapsed(!sidebarCollapsed);
+            }}
+            aria-label="Collapse sidebar"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg
+              className={`w-5 h-5 transition-transform duration-300 ${
+                sidebarCollapsed ? "rotate-180" : ""
+              }`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeJoin="round" />
+            </svg>
+          </button>
         </div>
 
         {/* Navigation Items */}
-        <nav className="px-4 py-4 flex-1 space-y-1.5">
+        <nav className="px-3 py-4 flex-1 space-y-1.5 overflow-y-auto">
           <button
-            onClick={() => setActiveTab("projects")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            onClick={() => {
+              setActiveTab("projects");
+              setSidebarOpen(false);
+            }}
+            title="Projects"
+            className={`w-full flex items-center ${
+              sidebarCollapsed ? "md:justify-center md:px-0 px-4 gap-3" : "gap-3 px-4"
+            } py-3 rounded-xl text-sm font-medium transition-all ${
               activeTab === "projects"
                 ? "bg-white/10 text-white border border-white/10 shadow-sm"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
-            <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="14" width="7" height="7" rx="1.5" />
               <rect x="3" y="14" width="7" height="7" rx="1.5" />
             </svg>
-            Projects
+            <span className={sidebarCollapsed ? "md:hidden" : ""}>Projects</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("assets")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            onClick={() => {
+              setActiveTab("assets");
+              setSidebarOpen(false);
+            }}
+            title="Assets"
+            className={`w-full flex items-center ${
+              sidebarCollapsed ? "md:justify-center md:px-0 px-4 gap-3" : "gap-3 px-4"
+            } py-3 rounded-xl text-sm font-medium transition-all ${
               activeTab === "assets"
                 ? "bg-white/10 text-white border border-white/10 shadow-sm"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
-            <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
             </svg>
-            Assets
+            <span className={sidebarCollapsed ? "md:hidden" : ""}>Assets</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("templates")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            onClick={() => {
+              setActiveTab("templates");
+              setSidebarOpen(false);
+            }}
+            title="Templates"
+            className={`w-full flex items-center ${
+              sidebarCollapsed ? "md:justify-center md:px-0 px-4 gap-3" : "gap-3 px-4"
+            } py-3 rounded-xl text-sm font-medium transition-all ${
               activeTab === "templates"
                 ? "bg-white/10 text-white border border-white/10 shadow-sm"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
-            <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="4" y="4" width="16" height="16" rx="2" />
               <path d="M4 10h16M10 4v16" />
             </svg>
-            Templates
+            <span className={sidebarCollapsed ? "md:hidden" : ""}>Templates</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("settings")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            onClick={() => {
+              setActiveTab("settings");
+              setSidebarOpen(false);
+            }}
+            title="Settings"
+            className={`w-full flex items-center ${
+              sidebarCollapsed ? "md:justify-center md:px-0 px-4 gap-3" : "gap-3 px-4"
+            } py-3 rounded-xl text-sm font-medium transition-all ${
               activeTab === "settings"
                 ? "bg-white/10 text-white border border-white/10 shadow-sm"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
-            <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
             </svg>
-            Settings
+            <span className={sidebarCollapsed ? "md:hidden" : ""}>Settings</span>
           </button>
         </nav>
 
         {/* Bottom Settings Link */}
-        <div className="p-4 border-t border-white/10">
+        <div className="p-3 border-t border-white/10">
           <button
-            onClick={() => setActiveTab("settings")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            onClick={() => {
+              setActiveTab("settings");
+              setSidebarOpen(false);
+            }}
+            title="Settings"
+            className={`w-full flex items-center ${
+              sidebarCollapsed ? "md:justify-center md:px-0 px-4 gap-3" : "gap-3 px-4"
+            } py-3 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all`}
           >
-            <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
             </svg>
-            Settings
+            <span className={sidebarCollapsed ? "md:hidden" : ""}>Settings</span>
           </button>
         </div>
       </aside>
@@ -243,33 +315,50 @@ export default function DashboardPage() {
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         {/* Header Bar */}
-        <header className="px-8 py-5 flex items-center justify-between border-b border-white/10 bg-[#0d0e17]/50 backdrop-blur-md sticky top-0 z-20">
-          {/* Search Input */}
-          <div className="relative w-80">
-            <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search"
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 transition-all"
-            />
+        <header className="px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between border-b border-white/10 bg-[#0d0e17]/50 backdrop-blur-md sticky top-0 z-20 gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Sidebar Toggle Button */}
+            <button
+              onClick={() => {
+                setSidebarOpen((prev) => !prev);
+                if (sidebarCollapsed) setSidebarCollapsed(false);
+              }}
+              aria-label="Toggle sidebar"
+              className="p-2 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/10 text-gray-300 hover:text-white transition-all shrink-0"
+              title="Toggle navigation sidebar"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            {/* Search Input */}
+            <div className="relative w-full max-w-[200px] sm:max-w-xs sm:w-80">
+              <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search"
+                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 transition-all"
+              />
+            </div>
           </div>
 
           {/* Profile & New Project Button */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 text-sm font-medium text-gray-200 transition-all"
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 text-xs sm:text-sm font-medium text-gray-200 transition-all"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-400 flex items-center justify-center text-xs font-bold text-white uppercase">
+                <div className="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-400 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
                   {(session?.user?.name || session?.user?.email || "U")[0]}
                 </div>
-                <span>Profile</span>
+                <span className="hidden sm:inline">Profile</span>
                 <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M6 9l6 6 6-6" />
                 </svg>
@@ -293,18 +382,18 @@ export default function DashboardPage() {
             <button
               onClick={createProject}
               disabled={creating}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-[0_0_20px_rgba(168,85,247,0.35)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-[0_0_20px_rgba(168,85,247,0.35)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer disabled:opacity-50"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               </svg>
-              {creating ? "Creating..." : "+ New Project"}
+              <span>{creating ? "Creating..." : "+ New Project"}</span>
             </button>
           </div>
         </header>
 
         {/* Content Body */}
-        <main className="p-8 flex-1">
+        <main className="p-4 sm:p-8 flex-1">
           {activeTab === "projects" && (
             <>
               <div className="flex items-center justify-between mb-6">
