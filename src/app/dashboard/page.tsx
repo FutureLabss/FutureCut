@@ -198,7 +198,7 @@ export default function DashboardPage() {
               stroke="currentColor"
               strokeWidth="2"
             >
-              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeJoin="round" />
+              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
